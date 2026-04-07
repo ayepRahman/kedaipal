@@ -1,0 +1,66 @@
+/**
+ * Server-side slug validation used by Convex mutations. Kept free of Convex
+ * imports so it can be unit-tested in isolation and mirrors the client-side
+ * logic in `src/lib/slug.ts`.
+ *
+ * IMPORTANT: Keep in sync with `src/lib/slug.ts`. Both files must stay
+ * byte-identical in logic — they exist separately because Convex functions
+ * bundle from the `convex/` directory.
+ */
+
+export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
+	"_",
+	"about",
+	"admin",
+	"api",
+	"app",
+	"assets",
+	"blog",
+	"docs",
+	"favicon.ico",
+	"help",
+	"kedaipal",
+	"login",
+	"logout",
+	"onboarding",
+	"pricing",
+	"public",
+	"robots.txt",
+	"settings",
+	"sign-in",
+	"sign-up",
+	"signin",
+	"signup",
+	"sitemap.xml",
+	"static",
+	"support",
+	"www",
+]);
+
+export const SLUG_MIN = 3;
+export const SLUG_MAX = 32;
+const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+export function assertValidSlug(raw: string): string {
+	const s = raw.trim().toLowerCase();
+	if (s.length < SLUG_MIN) {
+		throw new Error(`Slug must be at least ${SLUG_MIN} characters`);
+	}
+	if (s.length > SLUG_MAX) {
+		throw new Error(`Slug must be at most ${SLUG_MAX} characters`);
+	}
+	if (!SLUG_PATTERN.test(s)) {
+		throw new Error("Slug must use lowercase letters, numbers and single dashes");
+	}
+	if (RESERVED_SLUGS.has(s)) {
+		throw new Error("This slug is reserved");
+	}
+	return s;
+}
+
+export function assertValidStoreName(raw: string): string {
+	const s = raw.trim();
+	if (s.length < 2) throw new Error("Store name must be at least 2 characters");
+	if (s.length > 60) throw new Error("Store name must be at most 60 characters");
+	return s;
+}

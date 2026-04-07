@@ -1,3 +1,4 @@
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
@@ -10,6 +11,11 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 const config = defineConfig({
 	plugins: [
+		paraglideVitePlugin({
+			project: "./project.inlang",
+			outdir: "./src/paraglide",
+			strategy: ["cookie", "preferredLanguage", "baseLocale"],
+		}),
 		devtools(),
 		cloudflare({ viteEnvironment: { name: "ssr" } }),
 		tsconfigPaths({ projects: ["./tsconfig.json"] }),
