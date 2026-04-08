@@ -1,35 +1,141 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Button } from "../components/ui/button";
+import { CartBar } from "../components/storefront/cart-bar";
+import { ProductGrid } from "../components/storefront/product-grid";
+import { getConvexHttpClient, SITE_URL } from "../lib/convex-server";
+import { useCart } from "../hooks/useCart";
+
+interface StorefrontLoaderData {
+	storeName: string;
+	slug: string;
+	waPhone: string | undefined;
+	description: string;
+	canonicalUrl: string;
+	ogImageUrl: string | undefined;
+}
 
 export const Route = createFileRoute("/$slug")({
+	loader: async ({ params }): Promise<StorefrontLoaderData> => {
+		const client = getConvexHttpClient();
+		const result = await client.query(api.retailers.getRetailerBySlug, {
+			slug: params.slug,
+		});
+
+		if (result.status === "redirect") {
+			throw redirect({
+				to: "/$slug",
+				params: { slug: result.to },
+				statusCode: 301,
+			});
+		}
+		if (result.status === "notFound") {
+			throw notFound();
+		}
+
+		const retailer = result.retailer;
+
+		// Logo wins for OG image; fall back to first product image.
+		let ogImageUrl: string | undefined = retailer.logoUrl;
+		if (!ogImageUrl) {
+			try {
+				const products = await client.query(api.products.list, {
+					retailerId: retailer._id,
+				});
+				ogImageUrl = products.find((p) => p.imageUrls[0])?.imageUrls[0];
+			} catch {
+				ogImageUrl = undefined;
+			}
+		}
+
+		return {
+			storeName: retailer.storeName,
+			slug: retailer.slug,
+			waPhone: retailer.waPhone,
+			description: `Shop ${retailer.storeName} on Kedaipal — browse the catalog and place your order on WhatsApp.`,
+			canonicalUrl: `${SITE_URL}/${retailer.slug}`,
+			ogImageUrl,
+		};
+	},
+	head: ({ loaderData }) => {
+		if (!loaderData) return {};
+		const {
+			storeName,
+			description,
+			canonicalUrl,
+			ogImageUrl,
+		} = loaderData;
+		const title = `${storeName} — Order on WhatsApp | Kedaipal`;
+
+		const meta = [
+			{ title },
+			{ name: "description", content: description },
+			{ name: "robots", content: "index, follow" },
+			// Open Graph
+			{ property: "og:type", content: "website" },
+			{ property: "og:site_name", content: "Kedaipal" },
+			{ property: "og:title", content: title },
+			{ property: "og:description", content: description },
+			{ property: "og:url", content: canonicalUrl },
+			// Twitter
+			{ name: "twitter:card", content: ogImageUrl ? "summary_large_image" : "summary" },
+			{ name: "twitter:title", content: title },
+			{ name: "twitter:description", content: description },
+		];
+		if (ogImageUrl) {
+			meta.push(
+				{ property: "og:image", content: ogImageUrl },
+				{ name: "twitter:image", content: ogImageUrl },
+			);
+		}
+
+		const jsonLd = {
+			"@context": "https://schema.org",
+			"@type": "Store",
+			name: storeName,
+			url: canonicalUrl,
+			...(ogImageUrl ? { image: ogImageUrl } : {}),
+		};
+
+		return {
+			meta,
+			links: [{ rel: "canonical", href: canonicalUrl }],
+			scripts: [
+				{
+					type: "application/ld+json",
+					children: JSON.stringify(jsonLd),
+				},
+			],
+		};
+	},
+	notFoundComponent: StoreNotFound,
 	component: StorefrontRoute,
 });
 
+function StoreNotFound() {
+	const { slug } = Route.useParams();
+	return (
+		<main className="mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-3 px-5 text-center">
+			<h1 className="text-3xl font-bold">Store not found</h1>
+			<p className="text-sm text-muted-foreground">
+				No retailer uses <span className="font-mono">/{slug}</span>.
+			</p>
+		</main>
+	);
+}
+
 function StorefrontRoute() {
 	const { slug } = Route.useParams();
+	// Live query keeps the catalog reactive after the SSR'd loader response.
 	const result = useQuery(api.retailers.getRetailerBySlug, { slug });
+	const cart = useCart(
+		result && result.status === "ok" ? result.retailer._id : undefined,
+	);
 
-	if (result === undefined) {
+	if (result === undefined || result.status !== "ok") {
 		return (
 			<main className="mx-auto flex min-h-dvh w-full max-w-md items-center justify-center px-5">
 				<p className="text-sm text-muted-foreground">Loading…</p>
-			</main>
-		);
-	}
-
-	if (result.status === "redirect") {
-		return <Navigate to="/$slug" params={{ slug: result.to }} replace />;
-	}
-
-	if (result.status === "notFound") {
-		return (
-			<main className="mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-3 px-5 text-center">
-				<h1 className="text-3xl font-bold">Store not found</h1>
-				<p className="text-sm text-muted-foreground">
-					No retailer uses <span className="font-mono">/{slug}</span>.
-				</p>
 			</main>
 		);
 	}
@@ -38,31 +144,39 @@ function StorefrontRoute() {
 
 	return (
 		<div className="mx-auto flex min-h-dvh w-full max-w-md flex-col pb-32">
-			<header className="flex flex-col gap-2 px-5 pt-10">
+			<header className="flex flex-col gap-4 bg-gradient-to-b from-accent/10 to-background px-5 pb-6 pt-10">
 				<p className="text-xs font-semibold uppercase tracking-widest text-accent">
 					Kedaipal
 				</p>
-				<h1 className="text-3xl font-bold leading-tight">
-					{retailer.storeName}
-				</h1>
-				<p className="text-sm text-muted-foreground">
-					Mobile-first storefront — products land in the next slice.
-				</p>
+				<div className="flex items-center gap-4">
+					{retailer.logoUrl ? (
+						<img
+							src={retailer.logoUrl}
+							alt={`${retailer.storeName} logo`}
+							className="h-16 w-16 shrink-0 rounded-2xl border-2 border-accent/20 bg-background object-contain shadow-sm"
+						/>
+					) : null}
+					<div>
+						<h1 className="text-2xl font-bold leading-tight tracking-tight">
+							{retailer.storeName}
+						</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">
+							Browse &amp; order on WhatsApp
+						</p>
+					</div>
+				</div>
 			</header>
 
-			<section className="mt-6 flex flex-col gap-3 px-5">
-				<div className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
-					Product catalog coming soon.
-				</div>
+			<section className="mt-4 px-5">
+				<ProductGrid retailerId={retailer._id} cart={cart} />
 			</section>
 
-			<div className="fixed inset-x-0 bottom-0 border-t border-border bg-background px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-				<div className="mx-auto max-w-md">
-					<Button disabled className="h-12 w-full text-base">
-						Order on WhatsApp
-					</Button>
-				</div>
-			</div>
+			<CartBar
+				cart={cart}
+				retailerId={retailer._id}
+				storeName={retailer.storeName}
+				waPhone={retailer.waPhone}
+			/>
 		</div>
 	);
 }

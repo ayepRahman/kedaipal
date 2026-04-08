@@ -1,14 +1,145 @@
 import { v } from "convex/values";
+
+const localeOverridesValidator = v.object({
+	confirm: v.optional(v.string()),
+	packed: v.optional(v.string()),
+	shipped: v.optional(v.string()),
+	delivered: v.optional(v.string()),
+	cancelled: v.optional(v.string()),
+	unknownFallback: v.optional(v.string()),
+});
+
+const messageTemplatesValidator = v.object({
+	en: v.optional(localeOverridesValidator),
+	ms: v.optional(localeOverridesValidator),
+});
+
+const paymentInstructionsValidator = v.object({
+	bankName: v.optional(v.string()),
+	bankAccountName: v.optional(v.string()),
+	bankAccountNumber: v.optional(v.string()),
+	qrImageStorageId: v.optional(v.string()),
+	note: v.optional(v.string()),
+});
+
+const PAYMENT_FIELD_MAX = 120;
+const PAYMENT_NOTE_MAX = 500;
+
+type PaymentInstructionsShape = {
+	bankName?: string;
+	bankAccountName?: string;
+	bankAccountNumber?: string;
+	qrImageStorageId?: string;
+	note?: string;
+};
+
+function sanitizePaymentInstructions(
+	input: PaymentInstructionsShape,
+): PaymentInstructionsShape | undefined {
+	const out: PaymentInstructionsShape = {};
+	const trimField = (key: keyof PaymentInstructionsShape, max: number) => {
+		const raw = input[key];
+		if (raw === undefined) return;
+		const trimmed = raw.trim();
+		if (trimmed.length === 0) return; // empty → reset
+		if (trimmed.length > max) {
+			throw new ConvexError(`Payment field "${key}" exceeds ${max} characters`);
+		}
+		out[key] = trimmed;
+	};
+	trimField("bankName", PAYMENT_FIELD_MAX);
+	trimField("bankAccountName", PAYMENT_FIELD_MAX);
+	trimField("bankAccountNumber", PAYMENT_FIELD_MAX);
+	trimField("qrImageStorageId", PAYMENT_FIELD_MAX);
+	trimField("note", PAYMENT_NOTE_MAX);
+	return Object.keys(out).length > 0 ? out : undefined;
+}
 import type { Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query, type QueryCtx } from "./_generated/server";
-import { assertValidSlug, assertValidStoreName } from "./lib/slug";
+import { ConvexError } from "convex/values";
+import { rateLimiter } from "./lib/rateLimiter";
+import {
+	assertSupportedCurrency,
+	DEFAULT_CURRENCY,
+	type SupportedCurrency,
+} from "./lib/currency";
+import {
+	assertValidSlug,
+	assertValidStoreName,
+	assertValidWaPhone,
+} from "./lib/slug";
 
 const SLUG_HISTORY_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+
+export type Locale = "en" | "ms";
+export const DEFAULT_LOCALE: Locale = "en";
+
+type LocaleOverrides = {
+	confirm?: string;
+	packed?: string;
+	shipped?: string;
+	delivered?: string;
+	cancelled?: string;
+	unknownFallback?: string;
+};
+
+type MessageTemplatesShape = {
+	en?: LocaleOverrides;
+	ms?: LocaleOverrides;
+};
+
+const TEMPLATE_MAX_LENGTH = 1000;
+
+function sanitizeOverrides(
+	input: LocaleOverrides | undefined,
+): LocaleOverrides | undefined {
+	if (!input) return undefined;
+	const out: LocaleOverrides = {};
+	for (const key of [
+		"confirm",
+		"packed",
+		"shipped",
+		"delivered",
+		"cancelled",
+		"unknownFallback",
+	] as const) {
+		const raw = input[key];
+		if (raw === undefined) continue;
+		const trimmed = raw.trim();
+		if (trimmed.length === 0) continue; // empty → reset to default
+		if (trimmed.length > TEMPLATE_MAX_LENGTH) {
+			throw new ConvexError(
+				`Template "${key}" exceeds ${TEMPLATE_MAX_LENGTH} characters`,
+			);
+		}
+		out[key] = trimmed;
+	}
+	return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function sanitizeMessageTemplates(
+	input: MessageTemplatesShape,
+): MessageTemplatesShape | undefined {
+	const en = sanitizeOverrides(input.en);
+	const ms = sanitizeOverrides(input.ms);
+	const out: MessageTemplatesShape = {};
+	if (en) out.en = en;
+	if (ms) out.ms = ms;
+	return Object.keys(out).length > 0 ? out : undefined;
+}
 
 type RetailerPublic = {
 	_id: Id<"retailers">;
 	slug: string;
 	storeName: string;
+	waPhone?: string;
+	logoStorageId?: string;
+	logoUrl?: string;
+	currency: SupportedCurrency;
+	locale: Locale;
+	messageTemplates?: MessageTemplatesShape;
+	paymentInstructions?: PaymentInstructionsShape;
+	paymentQrImageUrl?: string;
 };
 
 async function loadRetailerForUser(
@@ -20,7 +151,32 @@ async function loadRetailerForUser(
 		.withIndex("by_user", (q) => q.eq("userId", userId))
 		.first();
 	if (!row) return null;
-	return { _id: row._id, slug: row.slug, storeName: row.storeName };
+	const paymentInstructions = row.paymentInstructions as
+		| PaymentInstructionsShape
+		| undefined;
+	let paymentQrImageUrl: string | undefined;
+	if (paymentInstructions?.qrImageStorageId) {
+		const url = await ctx.storage.getUrl(paymentInstructions.qrImageStorageId);
+		paymentQrImageUrl = url ?? undefined;
+	}
+	let logoUrl: string | undefined;
+	if (row.logoStorageId) {
+		const url = await ctx.storage.getUrl(row.logoStorageId);
+		logoUrl = url ?? undefined;
+	}
+	return {
+		_id: row._id,
+		slug: row.slug,
+		storeName: row.storeName,
+		waPhone: row.waPhone,
+		logoStorageId: row.logoStorageId,
+		logoUrl,
+		currency: (row.currency as SupportedCurrency) ?? DEFAULT_CURRENCY,
+		locale: row.locale ?? DEFAULT_LOCALE,
+		messageTemplates: row.messageTemplates as MessageTemplatesShape | undefined,
+		paymentInstructions,
+		paymentQrImageUrl,
+	};
 }
 
 async function requireUserId(ctx: QueryCtx): Promise<string> {
@@ -64,9 +220,30 @@ export const getRetailerBySlug = query({
 			.withIndex("by_slug", (q) => q.eq("slug", normalized))
 			.first();
 		if (active) {
+			let logoUrl: string | undefined;
+			if (active.logoStorageId) {
+				const url = await ctx.storage.getUrl(active.logoStorageId);
+				logoUrl = url ?? undefined;
+			}
 			return {
 				status: "ok",
-				retailer: { _id: active._id, slug: active.slug, storeName: active.storeName },
+				retailer: {
+					_id: active._id,
+					slug: active.slug,
+					storeName: active.storeName,
+					waPhone: active.waPhone,
+					logoStorageId: active.logoStorageId,
+					logoUrl,
+					currency:
+						(active.currency as SupportedCurrency) ?? DEFAULT_CURRENCY,
+					locale: active.locale ?? DEFAULT_LOCALE,
+					messageTemplates: active.messageTemplates as
+						| MessageTemplatesShape
+						| undefined,
+					// paymentInstructions intentionally omitted from the public
+					// storefront payload — only revealed in the WhatsApp confirm
+					// reply after the shopper commits to an order.
+				},
 			};
 		}
 
@@ -145,25 +322,32 @@ export const createRetailer = mutation({
 	args: {
 		storeName: v.string(),
 		slug: v.string(),
+		waPhone: v.optional(v.string()),
 	},
 	handler: async (ctx, args): Promise<{ slug: string }> => {
 		const userId = await requireUserId(ctx);
-		const storeName = assertValidStoreName(args.storeName);
-		const slug = assertValidSlug(args.slug);
+		let storeName: string;
+		let slug: string;
+		let waPhone: string | undefined;
+		try { storeName = assertValidStoreName(args.storeName); } catch (err) { throw new ConvexError((err as Error).message); }
+		try { slug = assertValidSlug(args.slug); } catch (err) { throw new ConvexError((err as Error).message); }
+		if (args.waPhone && args.waPhone.trim().length > 0) {
+			try { waPhone = assertValidWaPhone(args.waPhone); } catch (err) { throw new ConvexError((err as Error).message); }
+		}
 
 		const existing = await ctx.db
 			.query("retailers")
 			.withIndex("by_user", (q) => q.eq("userId", userId))
 			.first();
 		if (existing) {
-			throw new Error("You already have a store. Each account can own one retailer.");
+			throw new ConvexError("You already have a store. Each account can own one retailer.");
 		}
 
 		const collision = await ctx.db
 			.query("retailers")
 			.withIndex("by_slug", (q) => q.eq("slug", slug))
 			.first();
-		if (collision) throw new Error("That slug is taken");
+		if (collision) throw new ConvexError("That slug is taken");
 
 		// Slug history collision (someone else's rename, still within TTL)
 		const historyRow = await ctx.db
@@ -171,7 +355,7 @@ export const createRetailer = mutation({
 			.withIndex("by_old_slug", (q) => q.eq("oldSlug", slug))
 			.first();
 		if (historyRow && historyRow.expiresAt > Date.now()) {
-			throw new Error("That slug is temporarily reserved");
+			throw new ConvexError("That slug is temporarily reserved");
 		}
 		if (historyRow) {
 			// Expired but not yet purged — remove inline.
@@ -183,12 +367,82 @@ export const createRetailer = mutation({
 			userId,
 			slug,
 			storeName,
+			waPhone,
+			currency: DEFAULT_CURRENCY,
 			channel: "whatsapp",
 			createdAt: now,
 			updatedAt: now,
 		});
 
 		return { slug };
+	},
+});
+
+/**
+ * Update retailer profile fields (store name, WhatsApp number).
+ * Slug renames go through `renameSlug` which has its own history bookkeeping.
+ */
+export const updateSettings = mutation({
+	args: {
+		storeName: v.optional(v.string()),
+		waPhone: v.optional(v.string()),
+		currency: v.optional(v.string()),
+		locale: v.optional(v.union(v.literal("en"), v.literal("ms"))),
+		messageTemplates: v.optional(messageTemplatesValidator),
+		paymentInstructions: v.optional(paymentInstructionsValidator),
+		// Empty string clears the logo. Undefined means "no change".
+		logoStorageId: v.optional(v.string()),
+	},
+	handler: async (ctx, args): Promise<{ ok: true }> => {
+		const userId = await requireUserId(ctx);
+		const retailer = await ctx.db
+			.query("retailers")
+			.withIndex("by_user", (q) => q.eq("userId", userId))
+			.first();
+		if (!retailer) throw new ConvexError("No store to update");
+
+		const patch: Partial<{
+			storeName: string;
+			waPhone: string | undefined;
+			logoStorageId: string | undefined;
+			currency: SupportedCurrency;
+			locale: Locale;
+			messageTemplates: MessageTemplatesShape | undefined;
+			paymentInstructions: PaymentInstructionsShape | undefined;
+			updatedAt: number;
+		}> = { updatedAt: Date.now() };
+
+		if (args.storeName !== undefined) {
+			try { patch.storeName = assertValidStoreName(args.storeName); } catch (err) { throw new ConvexError((err as Error).message); }
+		}
+		if (args.waPhone !== undefined) {
+			if (args.waPhone.trim().length > 0) {
+				try { patch.waPhone = assertValidWaPhone(args.waPhone); } catch (err) { throw new ConvexError((err as Error).message); }
+			} else {
+				patch.waPhone = undefined;
+			}
+		}
+		if (args.currency !== undefined) {
+			try { patch.currency = assertSupportedCurrency(args.currency); } catch (err) { throw new ConvexError((err as Error).message); }
+		}
+		if (args.locale !== undefined) {
+			patch.locale = args.locale;
+		}
+		if (args.messageTemplates !== undefined) {
+			patch.messageTemplates = sanitizeMessageTemplates(args.messageTemplates);
+		}
+		if (args.paymentInstructions !== undefined) {
+			patch.paymentInstructions = sanitizePaymentInstructions(
+				args.paymentInstructions,
+			);
+		}
+		if (args.logoStorageId !== undefined) {
+			const trimmed = args.logoStorageId.trim();
+			patch.logoStorageId = trimmed.length > 0 ? trimmed : undefined;
+		}
+
+		await ctx.db.patch(retailer._id, patch);
+		return { ok: true };
 	},
 });
 
@@ -202,13 +456,14 @@ export const renameSlug = mutation({
 	args: { newSlug: v.string() },
 	handler: async (ctx, { newSlug }): Promise<{ slug: string }> => {
 		const userId = await requireUserId(ctx);
-		const slug = assertValidSlug(newSlug);
+		let slug: string;
+		try { slug = assertValidSlug(newSlug); } catch (err) { throw new ConvexError((err as Error).message); }
 
 		const retailer = await ctx.db
 			.query("retailers")
 			.withIndex("by_user", (q) => q.eq("userId", userId))
 			.first();
-		if (!retailer) throw new Error("No store to rename");
+		if (!retailer) throw new ConvexError("No store to rename");
 
 		if (retailer.slug === slug) return { slug }; // no-op
 
@@ -217,7 +472,7 @@ export const renameSlug = mutation({
 			.withIndex("by_slug", (q) => q.eq("slug", slug))
 			.first();
 		if (collision && collision._id !== retailer._id) {
-			throw new Error("That slug is taken");
+			throw new ConvexError("That slug is taken");
 		}
 
 		const historyRow = await ctx.db
@@ -228,7 +483,7 @@ export const renameSlug = mutation({
 			const historyOwner = await ctx.db.get(historyRow.retailerId);
 			if (!historyOwner || historyOwner._id !== retailer._id) {
 				if (historyRow.expiresAt > Date.now()) {
-					throw new Error("That slug is temporarily reserved");
+					throw new ConvexError("That slug is temporarily reserved");
 				}
 				await ctx.db.delete(historyRow._id);
 			} else {
@@ -246,6 +501,34 @@ export const renameSlug = mutation({
 		await ctx.db.patch(retailer._id, { slug, updatedAt: now });
 
 		return { slug };
+	},
+});
+
+/**
+ * Generate a one-shot upload URL for the retailer's store logo.
+ * The frontend POSTs the file here, then stores the returned `storageId`
+ * via `updateSettings({ logoStorageId })`.
+ */
+export const generateLogoUploadUrl = mutation({
+	args: {},
+	handler: async (ctx): Promise<string> => {
+		const userId = await requireUserId(ctx);
+		await rateLimiter.limit(ctx, "productWrite", { key: userId, throws: true });
+		return ctx.storage.generateUploadUrl();
+	},
+});
+
+/**
+ * Generate a one-shot upload URL for the retailer's payment QR image.
+ * The frontend POSTs the file to this URL, then stores the returned
+ * `storageId` via `updateSettings({ paymentInstructions: { qrImageStorageId } })`.
+ */
+export const generatePaymentQrUploadUrl = mutation({
+	args: {},
+	handler: async (ctx): Promise<string> => {
+		const userId = await requireUserId(ctx);
+		await rateLimiter.limit(ctx, "productWrite", { key: userId, throws: true });
+		return ctx.storage.generateUploadUrl();
 	},
 });
 

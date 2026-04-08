@@ -1,0 +1,274 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "convex/react";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "../../convex/_generated/api";
+import { Button } from "../components/ui/button";
+import { Skeleton } from "../components/ui/skeleton";
+import { formatPrice } from "../lib/format";
+import { cn } from "../lib/utils";
+
+type StatusFilter = "all" | "active" | "archived";
+
+export const Route = createFileRoute("/app/products/")({
+	component: ProductsRoute,
+});
+
+function ProductsRoute() {
+	const retailer = useQuery(api.retailers.getMyRetailer);
+	const products = useQuery(
+		api.products.listAll,
+		retailer ? { retailerId: retailer._id } : "skip",
+	);
+
+	const [rawQuery, setRawQuery] = useState("");
+	const [query, setQuery] = useState("");
+	const [status, setStatus] = useState<StatusFilter>("all");
+
+	useEffect(() => {
+		const t = setTimeout(() => setQuery(rawQuery), 200);
+		return () => clearTimeout(t);
+	}, [rawQuery]);
+
+	const counts = useMemo(() => {
+		if (!products) return { all: 0, active: 0, archived: 0 };
+		let active = 0;
+		for (const p of products) if (p.active) active++;
+		return {
+			all: products.length,
+			active,
+			archived: products.length - active,
+		};
+	}, [products]);
+
+	const filtered = useMemo(() => {
+		if (!products) return undefined;
+		const q = query.trim().toLowerCase();
+		return products.filter((p) => {
+			if (status === "active" && !p.active) return false;
+			if (status === "archived" && p.active) return false;
+			if (q && !p.name.toLowerCase().includes(q)) return false;
+			return true;
+		});
+	}, [products, query, status]);
+
+	if (!retailer) return null;
+
+	const filterOptions: { key: StatusFilter; label: string }[] = [
+		{ key: "all", label: "All" },
+		{ key: "active", label: "Active" },
+		{ key: "archived", label: "Archived" },
+	];
+
+	const clearFilters = () => {
+		setRawQuery("");
+		setQuery("");
+		setStatus("all");
+	};
+
+	return (
+		<div className="flex flex-col gap-4">
+			<div className="flex flex-wrap items-end justify-between gap-3">
+				<div className="flex min-w-0 flex-col gap-1">
+					<h2 className="text-xl font-bold">Products</h2>
+					<p className="text-xs text-muted-foreground">
+						{counts.active} active · {counts.archived} archived
+					</p>
+				</div>
+				<div className="flex gap-2">
+					<Button asChild variant="secondary" className="h-11">
+						<Link to="/app/products/import">Import CSV</Link>
+					</Button>
+					<Button asChild className="h-11">
+						<Link to="/app/products/new">+ New</Link>
+					</Button>
+				</div>
+			</div>
+
+			<div className="relative">
+				<svg
+					className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="2"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					aria-hidden="true"
+				>
+					<circle cx="11" cy="11" r="7" />
+					<path d="m20 20-3.5-3.5" />
+				</svg>
+				<input
+					type="search"
+					value={rawQuery}
+					onChange={(e) => setRawQuery(e.target.value)}
+					placeholder="Search products…"
+					className="h-11 w-full rounded-2xl border border-border bg-card pl-11 pr-10 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30"
+				/>
+				{rawQuery ? (
+					<button
+						type="button"
+						onClick={() => setRawQuery("")}
+						className="absolute right-3 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+						aria-label="Clear search"
+					>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							className="size-4"
+						>
+							<path d="M18 6 6 18" />
+							<path d="m6 6 12 12" />
+						</svg>
+					</button>
+				) : null}
+			</div>
+
+			<div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
+				{filterOptions.map((opt) => (
+					<button
+						key={opt.key}
+						type="button"
+						onClick={() => setStatus(opt.key)}
+						className={cn(
+							"flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm",
+							status === opt.key
+								? "border-foreground bg-foreground text-background"
+								: "border-border bg-background text-muted-foreground",
+						)}
+					>
+						{opt.label}
+						<span
+							className={cn(
+								"flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none",
+								status === opt.key
+									? "bg-background text-foreground"
+									: "bg-muted text-muted-foreground",
+							)}
+						>
+							{counts[opt.key]}
+						</span>
+					</button>
+				))}
+			</div>
+
+			{filtered === undefined ? (
+				<ProductListSkeleton />
+			) : products && products.length === 0 ? (
+				<div className="rounded-2xl border border-dashed border-border p-8 text-center">
+					<p className="font-medium">No products yet</p>
+					<p className="mt-1 text-sm text-muted-foreground">
+						Add your first product to start selling.
+					</p>
+					<Button asChild className="mt-4 h-11">
+						<Link to="/app/products/new">+ New product</Link>
+					</Button>
+				</div>
+			) : filtered.length === 0 ? (
+				<div className="rounded-2xl border border-dashed border-border p-8 text-center">
+					<p className="font-medium">No products match your filters</p>
+					{query ? (
+						<p className="mt-1 text-sm text-muted-foreground">
+							Nothing found for &ldquo;{query}&rdquo;.
+						</p>
+					) : null}
+					<Button
+						variant="ghost"
+						onClick={clearFilters}
+						className="mt-4 h-10"
+					>
+						Clear filters
+					</Button>
+				</div>
+			) : (
+				<ul className="flex flex-col gap-3">
+					{filtered.map((p) => {
+						const outOfStock = p.active && p.stock === 0;
+						const lowStock = p.active && p.stock > 0 && p.stock <= 3;
+						return (
+							<li key={p._id}>
+								<Link
+									to="/app/products/$productId"
+									params={{ productId: p._id }}
+									className="flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-card p-3 transition-colors hover:border-ring hover:bg-accent/5"
+								>
+									<div className="size-16 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-border/60">
+										{p.imageUrls[0] ? (
+											<img
+												src={p.imageUrls[0]}
+												alt=""
+												className="size-full object-cover"
+											/>
+										) : null}
+									</div>
+									<div className="flex min-w-0 flex-1 flex-col gap-1">
+										<span className="truncate font-medium">{p.name}</span>
+										<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+											<span className="font-semibold text-foreground">
+												{formatPrice(p.price, p.currency)}
+											</span>
+											<span className="text-muted-foreground">
+												· stock {p.stock}
+											</span>
+											{outOfStock ? (
+												<span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-600 dark:text-red-400">
+													Out of stock
+												</span>
+											) : lowStock ? (
+												<span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+													Low stock
+												</span>
+											) : null}
+										</div>
+									</div>
+									<div className="flex shrink-0 flex-col items-end gap-1">
+										{!p.active ? (
+											<span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+												Archived
+											</span>
+										) : null}
+										<svg
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="2"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											className="size-4 text-muted-foreground"
+											aria-hidden="true"
+										>
+											<path d="m9 18 6-6-6-6" />
+										</svg>
+									</div>
+								</Link>
+							</li>
+						);
+					})}
+				</ul>
+			)}
+		</div>
+	);
+}
+
+function ProductListSkeleton() {
+	return (
+		<ul className="flex flex-col gap-3">
+			{Array.from({ length: 5 }).map((_, i) => (
+				<li
+					key={i}
+					className="flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-card p-3"
+				>
+					<Skeleton className="size-16 shrink-0 rounded-xl" />
+					<div className="flex flex-1 flex-col gap-2">
+						<Skeleton className="h-4 w-2/3 rounded" />
+						<Skeleton className="h-3 w-1/3 rounded" />
+					</div>
+				</li>
+			))}
+		</ul>
+	);
+}

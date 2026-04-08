@@ -1,0 +1,288 @@
+import { v } from "convex/values";
+import { internal } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
+import {
+	internalAction,
+	internalMutation,
+	internalQuery,
+} from "./_generated/server";
+import { sendImage, sendText } from "./lib/whatsapp";
+import {
+	paymentQrCaption,
+	pickLocale,
+	renderMessage,
+	renderPaymentInstructions,
+	SHORT_ID_REGEX,
+	type Locale,
+	type MessageTemplates,
+	type PaymentInstructions,
+} from "./lib/whatsappCopy";
+
+type ResolvedPayment = {
+	instructions: PaymentInstructions | undefined;
+	qrImageUrl: string | undefined;
+};
+
+const statusValidator = v.union(
+	v.literal("pending"),
+	v.literal("confirmed"),
+	v.literal("packed"),
+	v.literal("shipped"),
+	v.literal("delivered"),
+	v.literal("cancelled"),
+);
+
+/**
+ * Internal mutation invoked by handleInbound when an ORD-XXXX is matched.
+ * Idempotent: re-confirming an already-confirmed order is a no-op for status,
+ * but still stamps customer.waPhone if missing.
+ */
+export const confirmOrderFromWhatsApp = internalMutation({
+	args: {
+		shortId: v.string(),
+		fromPhone: v.string(),
+	},
+	handler: async (
+		ctx,
+		{ shortId, fromPhone },
+	): Promise<{
+		matched: boolean;
+		alreadyConfirmed: boolean;
+		orderId?: Id<"orders">;
+		retailerId?: Id<"retailers">;
+	}> => {
+		const order = await ctx.db
+			.query("orders")
+			.withIndex("by_shortId", (q) => q.eq("shortId", shortId))
+			.first();
+		if (!order) return { matched: false, alreadyConfirmed: false };
+
+		const now = Date.now();
+		const patch: Partial<Doc<"orders">> = { updatedAt: now };
+		if (!order.customer.waPhone) {
+			patch.customer = { ...order.customer, waPhone: fromPhone };
+		}
+
+		if (order.status === "pending") {
+			patch.status = "confirmed";
+			await ctx.db.patch(order._id, patch);
+			await ctx.db.insert("orderEvents", {
+				orderId: order._id,
+				status: "confirmed",
+				note: "Confirmed via WhatsApp",
+				createdAt: now,
+			});
+			return {
+				matched: true,
+				alreadyConfirmed: false,
+				orderId: order._id,
+				retailerId: order.retailerId,
+			};
+		}
+
+		// Already past pending — idempotent. Still patch waPhone if needed.
+		if (Object.keys(patch).length > 1) {
+			await ctx.db.patch(order._id, patch);
+		}
+		return {
+			matched: true,
+			alreadyConfirmed: true,
+			orderId: order._id,
+			retailerId: order.retailerId,
+		};
+	},
+});
+
+/**
+ * Internal query for actions to load order + retailer for outbound messaging.
+ */
+export const getOrderWithRetailer = internalQuery({
+	args: { orderId: v.id("orders") },
+	handler: async (
+		ctx,
+		{ orderId },
+	): Promise<{
+		shortId: string;
+		status: Doc<"orders">["status"];
+		customerWaPhone: string | undefined;
+		storeName: string;
+		locale: Locale;
+		messageTemplates: MessageTemplates | undefined;
+	} | null> => {
+		const order = await ctx.db.get(orderId);
+		if (!order) return null;
+		const retailer = await ctx.db.get(order.retailerId);
+		if (!retailer) return null;
+		return {
+			shortId: order.shortId,
+			status: order.status,
+			customerWaPhone: order.customer.waPhone,
+			storeName: retailer.storeName,
+			locale: (retailer.locale as Locale | undefined) ?? "en",
+			messageTemplates: retailer.messageTemplates as
+				| MessageTemplates
+				| undefined,
+		};
+	},
+});
+
+export const getRetailerLocaleForOrder = internalQuery({
+	args: { shortId: v.string() },
+	handler: async (
+		ctx,
+		{ shortId },
+	): Promise<{
+		locale: Locale;
+		storeName: string;
+		messageTemplates: MessageTemplates | undefined;
+		payment: ResolvedPayment;
+	} | null> => {
+		const order = await ctx.db
+			.query("orders")
+			.withIndex("by_shortId", (q) => q.eq("shortId", shortId))
+			.first();
+		if (!order) return null;
+		const retailer = await ctx.db.get(order.retailerId);
+		if (!retailer) return null;
+		const instructions = retailer.paymentInstructions as
+			| PaymentInstructions
+			| undefined;
+		let qrImageUrl: string | undefined;
+		if (instructions?.qrImageStorageId) {
+			const url = await ctx.storage.getUrl(instructions.qrImageStorageId);
+			qrImageUrl = url ?? undefined;
+		}
+		return {
+			locale: (retailer.locale as Locale | undefined) ?? "en",
+			storeName: retailer.storeName,
+			messageTemplates: retailer.messageTemplates as
+				| MessageTemplates
+				| undefined,
+			payment: { instructions, qrImageUrl },
+		};
+	},
+});
+
+/**
+ * Process an inbound WhatsApp text message. Searches for an ORD-XXXX token,
+ * confirms the order, and replies in the retailer's locale. Unknown messages
+ * receive a friendly fallback in English (we don't yet know the retailer).
+ */
+export const handleInbound = internalAction({
+	args: {
+		fromPhone: v.string(),
+		text: v.string(),
+	},
+	handler: async (ctx, { fromPhone, text }): Promise<void> => {
+		const fallback = (): string =>
+			renderMessage(undefined, "en", "unknownFallback", {
+				shortId: "",
+				storeName: "",
+			});
+
+		const match = text.match(SHORT_ID_REGEX);
+		if (!match) {
+			try {
+				await sendText(fromPhone, fallback());
+			} catch (err) {
+				console.error("WA fallback send failed", err);
+			}
+			return;
+		}
+
+		const shortId = match[0];
+		const result = await ctx.runMutation(
+			internal.whatsapp.confirmOrderFromWhatsApp,
+			{ shortId, fromPhone },
+		);
+
+		if (!result.matched) {
+			try {
+				await sendText(fromPhone, fallback());
+			} catch (err) {
+				console.error("WA fallback send failed", err);
+			}
+			return;
+		}
+
+		const meta = await ctx.runQuery(
+			internal.whatsapp.getRetailerLocaleForOrder,
+			{ shortId },
+		);
+		const locale = pickLocale(meta?.locale);
+		const storeName = meta?.storeName ?? "Kedaipal";
+		const confirmBody = renderMessage(
+			meta?.messageTemplates,
+			locale,
+			"confirm",
+			{ shortId, storeName },
+		);
+		const paymentBlock = renderPaymentInstructions(
+			locale,
+			meta?.payment.instructions,
+		);
+		const body = paymentBlock ? `${confirmBody}\n${paymentBlock}` : confirmBody;
+		try {
+			await sendText(fromPhone, body);
+		} catch (err) {
+			console.error("WA confirm send failed", err);
+		}
+
+		// QR image, if configured, is sent as a follow-up image message so the
+		// shopper can long-press to save it. Failures are isolated from the text
+		// reply above.
+		const qrUrl = meta?.payment.qrImageUrl;
+		if (qrUrl) {
+			try {
+				await sendImage(fromPhone, qrUrl, paymentQrCaption(locale));
+			} catch (err) {
+				console.error("WA payment QR send failed", err);
+			}
+		}
+	},
+});
+
+/**
+ * Scheduled by orders.updateStatus. Sends a localized status update to the
+ * shopper. Errors are swallowed (logged) so the originating mutation never
+ * fails because of an outbound network issue.
+ */
+export const notifyStatusChange = internalAction({
+	args: { orderId: v.id("orders") },
+	handler: async (ctx, { orderId }): Promise<void> => {
+		type Meta = {
+			shortId: string;
+			status: Doc<"orders">["status"];
+			customerWaPhone: string | undefined;
+			storeName: string;
+			locale: Locale;
+			messageTemplates: MessageTemplates | undefined;
+		};
+		let meta: Meta | null = null;
+		try {
+			meta = await ctx.runQuery(internal.whatsapp.getOrderWithRetailer, {
+				orderId,
+			});
+		} catch (err) {
+			console.error("WA notify lookup failed", err);
+			return;
+		}
+		if (!meta) return;
+		if (!meta.customerWaPhone) return;
+		if (meta.status === "pending" || meta.status === "confirmed") return;
+
+		const locale = pickLocale(meta.locale);
+		const body = renderMessage(meta.messageTemplates, locale, meta.status, {
+			shortId: meta.shortId,
+			storeName: meta.storeName,
+		});
+		try {
+			await sendText(meta.customerWaPhone, body);
+		} catch (err) {
+			console.error("WA status notify failed", err);
+		}
+	},
+});
+
+// Re-export validator for tests / other modules.
+export { statusValidator };

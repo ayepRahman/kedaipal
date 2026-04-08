@@ -2,10 +2,12 @@ import { RedirectToSignIn, Show } from "@clerk/tanstack-react-start";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import { type FormEvent, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
 import { Button } from "../components/ui/button";
 import { useSlugAvailability } from "../hooks/useSlugAvailability";
 import { slugify } from "../lib/slug";
+import { convexErrorMessage } from "../lib/format";
 
 export const Route = createFileRoute("/onboarding")({
 	component: OnboardingRoute,
@@ -30,7 +32,6 @@ function OnboardingForm() {
 	const [storeName, setStoreName] = useState("");
 	const [slug, setSlug] = useState("");
 	const [slugEdited, setSlugEdited] = useState(false);
-	const [submitError, setSubmitError] = useState<string | null>(null);
 	const [submitting, setSubmitting] = useState(false);
 
 	const availability = useSlugAvailability(slug);
@@ -51,9 +52,8 @@ function OnboardingForm() {
 
 	async function handleSubmit(e: FormEvent) {
 		e.preventDefault();
-		setSubmitError(null);
 		if (storeName.trim().length < 2) {
-			setSubmitError("Store name must be at least 2 characters");
+			toast.error("Store name must be at least 2 characters");
 			return;
 		}
 		if (availability.status !== "available") return;
@@ -62,7 +62,7 @@ function OnboardingForm() {
 			await createRetailer({ storeName: storeName.trim(), slug });
 			navigate({ to: "/app" });
 		} catch (err) {
-			setSubmitError((err as Error).message);
+			toast.error(convexErrorMessage(err));
 			setSubmitting(false);
 		}
 	}
@@ -117,12 +117,7 @@ function OnboardingForm() {
 					<AvailabilityHint state={availability} />
 				</Field>
 
-				{submitError ? (
-					<p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-						{submitError}
-					</p>
-				) : null}
-			</form>
+				</form>
 
 			<div className="fixed inset-x-0 bottom-0 border-t border-border bg-background px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
 				<div className="mx-auto max-w-md">

@@ -1,0 +1,79 @@
+import type { FunctionReturnType } from "convex/server";
+import { Plus } from "lucide-react";
+import type { api } from "../../../convex/_generated/api";
+import { Button } from "../ui/button";
+import { formatPrice } from "../../lib/format";
+
+export type StorefrontProduct = FunctionReturnType<
+	typeof api.products.list
+>[number];
+
+interface ProductCardProps {
+	product: StorefrontProduct;
+	onOpen: (product: StorefrontProduct) => void;
+	onQuickAdd: (product: StorefrontProduct) => void;
+}
+
+export function ProductCard({ product, onOpen, onQuickAdd }: ProductCardProps) {
+	const outOfStock = product.stock <= 0;
+	const lowStock = !outOfStock && product.stock <= 5;
+	const firstImage = product.imageUrls[0];
+
+	return (
+		<div className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-shadow duration-200 hover:shadow-md">
+			<button
+				type="button"
+				onClick={() => onOpen(product)}
+				className="relative aspect-square w-full overflow-hidden bg-muted text-left"
+			>
+				{firstImage ? (
+					<img
+						src={firstImage}
+						alt={product.name}
+						className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+						loading="lazy"
+					/>
+				) : (
+					<div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+						No image
+					</div>
+				)}
+				{firstImage && (
+					<div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/20 to-transparent" />
+				)}
+				{outOfStock ? (
+					<span className="absolute left-2 top-2 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur-sm">
+						Out of stock
+					</span>
+				) : lowStock ? (
+					<span className="absolute left-2 top-2 rounded-full bg-accent/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-foreground backdrop-blur-sm">
+						Low stock
+					</span>
+				) : null}
+			</button>
+
+			<div className="flex flex-1 flex-col gap-2 p-3">
+				<button
+					type="button"
+					onClick={() => onOpen(product)}
+					className="line-clamp-2 text-left text-[13px] font-medium leading-tight"
+				>
+					{product.name}
+				</button>
+				<p className="text-base font-bold tabular-nums">
+					{formatPrice(product.price, product.currency)}
+				</p>
+				<Button
+					type="button"
+					onClick={() => onQuickAdd(product)}
+					disabled={outOfStock}
+					size="sm"
+					className="mt-auto h-11 w-full rounded-xl"
+				>
+					<Plus className="size-4" />
+					Add
+				</Button>
+			</div>
+		</div>
+	);
+}

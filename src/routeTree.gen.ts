@@ -17,6 +17,12 @@ import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as SignUpSplatRouteImport } from './routes/sign-up.$'
 import { Route as SignInSplatRouteImport } from './routes/sign-in.$'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
+import { Route as AppProductsIndexRouteImport } from './routes/app.products.index'
+import { Route as AppOrdersIndexRouteImport } from './routes/app.orders.index'
+import { Route as AppProductsNewRouteImport } from './routes/app.products.new'
+import { Route as AppProductsImportRouteImport } from './routes/app.products.import'
+import { Route as AppProductsProductIdRouteImport } from './routes/app.products.$productId'
+import { Route as AppOrdersShortIdRouteImport } from './routes/app.orders.$shortId'
 
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
@@ -58,6 +64,36 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProductsIndexRoute = AppProductsIndexRouteImport.update({
+  id: '/products/',
+  path: '/products/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOrdersIndexRoute = AppOrdersIndexRouteImport.update({
+  id: '/orders/',
+  path: '/orders/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProductsNewRoute = AppProductsNewRouteImport.update({
+  id: '/products/new',
+  path: '/products/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProductsImportRoute = AppProductsImportRouteImport.update({
+  id: '/products/import',
+  path: '/products/import',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProductsProductIdRoute = AppProductsProductIdRouteImport.update({
+  id: '/products/$productId',
+  path: '/products/$productId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOrdersShortIdRoute = AppOrdersShortIdRouteImport.update({
+  id: '/orders/$shortId',
+  path: '/orders/$shortId',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +104,12 @@ export interface FileRoutesByFullPath {
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
   '/app/': typeof AppIndexRoute
+  '/app/orders/$shortId': typeof AppOrdersShortIdRoute
+  '/app/products/$productId': typeof AppProductsProductIdRoute
+  '/app/products/import': typeof AppProductsImportRoute
+  '/app/products/new': typeof AppProductsNewRoute
+  '/app/orders/': typeof AppOrdersIndexRoute
+  '/app/products/': typeof AppProductsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -77,6 +119,12 @@ export interface FileRoutesByTo {
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
   '/app': typeof AppIndexRoute
+  '/app/orders/$shortId': typeof AppOrdersShortIdRoute
+  '/app/products/$productId': typeof AppProductsProductIdRoute
+  '/app/products/import': typeof AppProductsImportRoute
+  '/app/products/new': typeof AppProductsNewRoute
+  '/app/orders': typeof AppOrdersIndexRoute
+  '/app/products': typeof AppProductsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -88,6 +136,12 @@ export interface FileRoutesById {
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
   '/app/': typeof AppIndexRoute
+  '/app/orders/$shortId': typeof AppOrdersShortIdRoute
+  '/app/products/$productId': typeof AppProductsProductIdRoute
+  '/app/products/import': typeof AppProductsImportRoute
+  '/app/products/new': typeof AppProductsNewRoute
+  '/app/orders/': typeof AppOrdersIndexRoute
+  '/app/products/': typeof AppProductsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -100,6 +154,12 @@ export interface FileRouteTypes {
     | '/sign-in/$'
     | '/sign-up/$'
     | '/app/'
+    | '/app/orders/$shortId'
+    | '/app/products/$productId'
+    | '/app/products/import'
+    | '/app/products/new'
+    | '/app/orders/'
+    | '/app/products/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -109,6 +169,12 @@ export interface FileRouteTypes {
     | '/sign-in/$'
     | '/sign-up/$'
     | '/app'
+    | '/app/orders/$shortId'
+    | '/app/products/$productId'
+    | '/app/products/import'
+    | '/app/products/new'
+    | '/app/orders'
+    | '/app/products'
   id:
     | '__root__'
     | '/'
@@ -119,6 +185,12 @@ export interface FileRouteTypes {
     | '/sign-in/$'
     | '/sign-up/$'
     | '/app/'
+    | '/app/orders/$shortId'
+    | '/app/products/$productId'
+    | '/app/products/import'
+    | '/app/products/new'
+    | '/app/orders/'
+    | '/app/products/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -188,17 +260,71 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/products/': {
+      id: '/app/products/'
+      path: '/products'
+      fullPath: '/app/products/'
+      preLoaderRoute: typeof AppProductsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/orders/': {
+      id: '/app/orders/'
+      path: '/orders'
+      fullPath: '/app/orders/'
+      preLoaderRoute: typeof AppOrdersIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/products/new': {
+      id: '/app/products/new'
+      path: '/products/new'
+      fullPath: '/app/products/new'
+      preLoaderRoute: typeof AppProductsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/products/import': {
+      id: '/app/products/import'
+      path: '/products/import'
+      fullPath: '/app/products/import'
+      preLoaderRoute: typeof AppProductsImportRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/products/$productId': {
+      id: '/app/products/$productId'
+      path: '/products/$productId'
+      fullPath: '/app/products/$productId'
+      preLoaderRoute: typeof AppProductsProductIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/orders/$shortId': {
+      id: '/app/orders/$shortId'
+      path: '/orders/$shortId'
+      fullPath: '/app/orders/$shortId'
+      preLoaderRoute: typeof AppOrdersShortIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppOrdersShortIdRoute: typeof AppOrdersShortIdRoute
+  AppProductsProductIdRoute: typeof AppProductsProductIdRoute
+  AppProductsImportRoute: typeof AppProductsImportRoute
+  AppProductsNewRoute: typeof AppProductsNewRoute
+  AppOrdersIndexRoute: typeof AppOrdersIndexRoute
+  AppProductsIndexRoute: typeof AppProductsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppOrdersShortIdRoute: AppOrdersShortIdRoute,
+  AppProductsProductIdRoute: AppProductsProductIdRoute,
+  AppProductsImportRoute: AppProductsImportRoute,
+  AppProductsNewRoute: AppProductsNewRoute,
+  AppOrdersIndexRoute: AppOrdersIndexRoute,
+  AppProductsIndexRoute: AppProductsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

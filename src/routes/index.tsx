@@ -28,7 +28,7 @@ function Landing() {
 			<ProblemStrip />
 			<HowItWorks />
 			<FeatureGrid />
-			<SocialProof />
+	
 			<PricingTeaser />
 			<Faq />
 			<FinalCta />
@@ -77,19 +77,12 @@ function Nav() {
 				</div>
 				<div className="flex items-center gap-2">
 					<LanguageSwitcher />
-					<Button
-						asChild
-						variant="ghost"
-						className="hidden h-10 px-4 text-sm md:inline-flex"
-					>
+					<Button asChild variant="ghost" size="lg" className="hidden md:inline-flex">
 						<Link to="/sign-in/$" params={{ _splat: "" }}>
 							{m.nav_sign_in()}
 						</Link>
 					</Button>
-					<Button
-						asChild
-						className="h-10 bg-accent px-4 text-sm text-accent-foreground hover:bg-accent/90"
-					>
+					<Button asChild size="lg">
 						<Link to="/sign-up/$" params={{ _splat: "" }}>
 							{m.nav_start_free()}
 						</Link>
@@ -106,17 +99,18 @@ function LanguageSwitcher() {
 	const current = getLocale();
 	const next = current === "ms" ? "en" : "ms";
 	return (
-		<button
+		<Button
 			type="button"
+			variant="ghost"
+			size="lg"
 			onClick={() => setLocale(next)}
 			aria-label={m.lang_switcher_label()}
-			className="flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 		>
-			<Globe className="size-4" />
+			<Globe />
 			<span className="hidden sm:inline">
 				{current === "ms" ? "EN" : "BM"}
 			</span>
-		</button>
+		</Button>
 	);
 }
 
@@ -143,20 +137,13 @@ function Hero() {
 						{m.hero_subhead()}
 					</p>
 					<div className="flex flex-col gap-3 pt-2 sm:flex-row">
-						<Button
-							asChild
-							className="h-12 bg-accent px-6 text-base text-accent-foreground hover:bg-accent/90"
-						>
+						<Button asChild size="lg" className="h-12 px-6 text-base">
 							<Link to="/sign-up/$" params={{ _splat: "" }}>
 								{m.hero_cta_primary()}
-								<ArrowRight className="ml-1 size-4" />
+								<ArrowRight />
 							</Link>
 						</Button>
-						<Button
-							asChild
-							variant="outline"
-							className="h-12 px-6 text-base"
-						>
+						<Button asChild variant="outline" size="lg" className="h-12 px-6 text-base">
 							<a href="#how">{m.hero_cta_secondary()}</a>
 						</Button>
 					</div>
@@ -517,13 +504,10 @@ function PricingTeaser() {
 						{m.pricing_sub()}
 					</p>
 					<div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-						<Button
-							asChild
-							className="h-12 bg-accent px-6 text-base text-accent-foreground hover:bg-accent/90"
-						>
+						<Button asChild size="lg" className="h-12 px-6 text-base">
 							<Link to="/sign-up/$" params={{ _splat: "" }}>
 								{m.pricing_cta()}
-								<ArrowRight className="ml-1 size-4" />
+								<ArrowRight />
 							</Link>
 						</Button>
 					</div>
@@ -575,13 +559,14 @@ function Faq() {
 								key={item.q}
 								className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
 							>
-								<button
+								<Button
 									type="button"
+									variant="ghost"
 									id={buttonId}
 									aria-expanded={isOpen}
 									aria-controls={panelId}
 									onClick={() => setOpenIndex(isOpen ? null : i)}
-									className="flex min-h-11 w-full items-center justify-between gap-4 px-5 py-4 text-left text-base font-semibold transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+									className="h-auto w-full justify-between gap-4 rounded-none px-5 py-4 text-left text-base font-semibold"
 								>
 									<span>{item.q}</span>
 									<ChevronDown
@@ -590,7 +575,7 @@ function Faq() {
 											isOpen && "rotate-180",
 										)}
 									/>
-								</button>
+								</Button>
 								<div
 									id={panelId}
 									role="region"
@@ -628,13 +613,10 @@ function FinalCta() {
 					{m.final_sub()}
 				</p>
 				<div className="mt-8 flex justify-center">
-					<Button
-						asChild
-						className="h-12 bg-accent px-8 text-base text-accent-foreground hover:bg-accent/90"
-					>
+					<Button asChild size="lg" className="h-12 px-8 text-base">
 						<Link to="/sign-up/$" params={{ _splat: "" }}>
 							{m.final_cta()}
-							<ArrowRight className="ml-1 size-4" />
+							<ArrowRight />
 						</Link>
 					</Button>
 				</div>
@@ -655,20 +637,6 @@ function Footer() {
 							<Store className="size-4" />
 						</span>
 						<span className="text-lg font-bold tracking-tight">Kedaipal</span>
-					</div>
-					<div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-						<a
-							href="mailto:hello@kedaipal.com"
-							className="transition-colors hover:text-foreground"
-						>
-							hello@kedaipal.com
-						</a>
-						<a href="#" className="transition-colors hover:text-foreground">
-							Twitter
-						</a>
-						<a href="#" className="transition-colors hover:text-foreground">
-							LinkedIn
-						</a>
 					</div>
 				</div>
 				<div className="mt-8 flex flex-col gap-2 border-t border-border pt-6 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between">

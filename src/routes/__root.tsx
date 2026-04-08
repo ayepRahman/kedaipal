@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
+import { Toaster } from "sonner";
 import { getConvexClient } from "../lib/convex";
 import { clientEnv } from "../lib/env";
 import appCss from "../styles.css?url";
@@ -77,6 +78,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 			</head>
 			<body className="min-h-dvh bg-background font-sans text-foreground antialiased">
 				<Providers>{children}</Providers>
+				<Toaster richColors position="top-right" />
 				<TanStackDevtools
 					config={{ position: "bottom-right" }}
 					plugins={[

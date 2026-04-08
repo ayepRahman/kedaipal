@@ -1,0 +1,48 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { ProductForm } from "../components/forms/product-form";
+
+export const Route = createFileRoute("/app/products/new")({
+	component: NewProductRoute,
+});
+
+function NewProductRoute() {
+	const navigate = useNavigate();
+	const retailer = useQuery(api.retailers.getMyRetailer);
+	const create = useMutation(api.products.create);
+
+	if (!retailer) return null;
+
+	return (
+		<div className="flex flex-col gap-4">
+			<div className="flex items-center gap-2">
+				<Link
+					to="/app/products"
+					className="text-sm text-muted-foreground hover:text-foreground"
+				>
+					← Products
+				</Link>
+			</div>
+			<h2 className="text-xl font-bold">New product</h2>
+
+			<ProductForm
+				currency={retailer.currency}
+				submitLabel="Create product"
+				onSubmit={async (values) => {
+					await create({
+						retailerId: retailer._id,
+						name: values.name,
+						description: values.description,
+						price: values.price,
+						currency: retailer.currency,
+						stock: values.stock,
+						imageStorageIds: values.imageStorageIds,
+						sortOrder: Date.now(),
+					});
+					navigate({ to: "/app/products" });
+				}}
+			/>
+		</div>
+	);
+}

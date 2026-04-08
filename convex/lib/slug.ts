@@ -64,3 +64,17 @@ export function assertValidStoreName(raw: string): string {
 	if (s.length > 60) throw new Error("Store name must be at most 60 characters");
 	return s;
 }
+
+/**
+ * Normalize and validate a WhatsApp phone number to E.164-ish digits.
+ * Strips '+', spaces, dashes, parentheses. Requires 8–15 digits.
+ */
+export function assertValidWaPhone(raw: string): string {
+	const s = raw.replace(/[\s\-()+]/g, "");
+	if (!/^\d{8,15}$/.test(s)) {
+		throw new Error(
+			"WhatsApp number must be 8–15 digits, with country code (e.g. 60123456789)",
+		);
+	}
+	return s;
+}
