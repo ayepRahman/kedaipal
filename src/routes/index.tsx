@@ -145,11 +145,8 @@ function Nav() {
 	return (
 		<nav className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur-md">
 			<div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 md:px-8">
-				<a href="#top" className="flex items-center gap-2">
-					<span className="flex size-8 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-						<Store className="size-4" />
-					</span>
-					<span className="text-lg font-bold tracking-tight">Kedaipal</span>
+				<a href="#top" className="flex items-center">
+					<img src="/logo-3.svg" alt="Kedaipal" className="h-9 w-auto" />
 				</a>
 				<div className="hidden items-center gap-8 md:flex">
 					<a
@@ -725,11 +722,8 @@ function Footer() {
 		<footer className="border-border/60 bg-background pb-[max(2rem,env(safe-area-inset-bottom))]">
 			<div className="mx-auto max-w-6xl px-5 py-12 md:px-8">
 				<div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
-					<div className="flex items-center gap-2">
-						<span className="flex size-8 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-							<Store className="size-4" />
-						</span>
-						<span className="text-lg font-bold tracking-tight">Kedaipal</span>
+					<div className="flex items-center">
+						<img src="/logo-3.svg" alt="Kedaipal" className="h-9 w-auto" />
 					</div>
 				</div>
 				<div className="mt-8 flex flex-col gap-2 border-t border-border pt-6 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between">

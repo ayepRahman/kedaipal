@@ -8,12 +8,6 @@
   "assets": {
     "directory": "./dist/client"
   },
-  "routes": [
-    {
-      "pattern": "kedaipal.com/*",
-      "zone_name": "kedaipal.com"
-    }
-  ],
   "vars": {
     "SITE_URL": "https://kedaipal.com"
   }
