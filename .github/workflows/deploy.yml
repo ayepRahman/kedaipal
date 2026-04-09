@@ -37,10 +37,10 @@ jobs:
       # manually in the Convex dashboard.
       - name: Sync Convex environment variables
         run: |
-          npx convex env set WHATSAPP_ACCESS_TOKEN "${{ secrets.WHATSAPP_ACCESS_TOKEN }}" --prod
-          npx convex env set WHATSAPP_PHONE_NUMBER_ID "${{ vars.WHATSAPP_PHONE_NUMBER_ID }}" --prod
-          npx convex env set WHATSAPP_VERIFY_TOKEN "${{ secrets.WHATSAPP_VERIFY_TOKEN }}" --prod
-          npx convex env set CLERK_JWT_ISSUER_DOMAIN "${{ secrets.CLERK_JWT_ISSUER_DOMAIN }}" --prod
+          npx convex env set WHATSAPP_ACCESS_TOKEN "${{ secrets.WHATSAPP_ACCESS_TOKEN }}"
+          npx convex env set WHATSAPP_PHONE_NUMBER_ID "${{ vars.WHATSAPP_PHONE_NUMBER_ID }}"
+          npx convex env set WHATSAPP_VERIFY_TOKEN "${{ secrets.WHATSAPP_VERIFY_TOKEN }}"
+          npx convex env set CLERK_JWT_ISSUER_DOMAIN "${{ secrets.CLERK_JWT_ISSUER_DOMAIN }}"
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
 
