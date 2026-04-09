@@ -240,8 +240,11 @@ export const updateStatus = mutation({
 		orderId: v.id("orders"),
 		status: transitionStatusValidator,
 		note: v.optional(v.string()),
+		// Carrier tracking URL — only accepted when transitioning to "shipped".
+		// Ignored for other status transitions.
+		carrierTrackingUrl: v.optional(v.string()),
 	},
-	handler: async (ctx, { orderId, status, note }): Promise<void> => {
+	handler: async (ctx, { orderId, status, note, carrierTrackingUrl }): Promise<void> => {
 		const identity = await ctx.auth.getUserIdentity();
 		if (!identity) throw new Error("Not authenticated");
 
@@ -274,7 +277,17 @@ export const updateStatus = mutation({
 			}
 		}
 
-		await ctx.db.patch(orderId, { status, updatedAt: now });
+		const patch: Partial<{ status: typeof status; updatedAt: number; carrierTrackingUrl: string }> = {
+			status,
+			updatedAt: now,
+		};
+		if (status === "shipped" && carrierTrackingUrl) {
+			const trimmed = carrierTrackingUrl.trim();
+			if (trimmed.length > 0) {
+				patch.carrierTrackingUrl = trimmed;
+			}
+		}
+		await ctx.db.patch(orderId, patch);
 		await ctx.db.insert("orderEvents", {
 			orderId,
 			status,

@@ -17,6 +17,7 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as SlugRouteImport } from './routes/$slug'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as TrackShortIdRouteImport } from './routes/track.$shortId'
 import { Route as SignUpSplatRouteImport } from './routes/sign-up.$'
 import { Route as SignInSplatRouteImport } from './routes/sign-in.$'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
@@ -66,6 +67,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const TrackShortIdRoute = TrackShortIdRouteImport.update({
+  id: '/track/$shortId',
+  path: '/track/$shortId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const SignUpSplatRoute = SignUpSplatRouteImport.update({
   id: '/sign-up/$',
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/app/settings': typeof AppSettingsRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
+  '/track/$shortId': typeof TrackShortIdRoute
   '/app/': typeof AppIndexRoute
   '/app/orders/$shortId': typeof AppOrdersShortIdRoute
   '/app/products/$productId': typeof AppProductsProductIdRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/app/settings': typeof AppSettingsRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
+  '/track/$shortId': typeof TrackShortIdRoute
   '/app': typeof AppIndexRoute
   '/app/orders/$shortId': typeof AppOrdersShortIdRoute
   '/app/products/$productId': typeof AppProductsProductIdRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/app/settings': typeof AppSettingsRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
+  '/track/$shortId': typeof TrackShortIdRoute
   '/app/': typeof AppIndexRoute
   '/app/orders/$shortId': typeof AppOrdersShortIdRoute
   '/app/products/$productId': typeof AppProductsProductIdRoute
@@ -183,6 +192,7 @@ export interface FileRouteTypes {
     | '/app/settings'
     | '/sign-in/$'
     | '/sign-up/$'
+    | '/track/$shortId'
     | '/app/'
     | '/app/orders/$shortId'
     | '/app/products/$productId'
@@ -201,6 +211,7 @@ export interface FileRouteTypes {
     | '/app/settings'
     | '/sign-in/$'
     | '/sign-up/$'
+    | '/track/$shortId'
     | '/app'
     | '/app/orders/$shortId'
     | '/app/products/$productId'
@@ -220,6 +231,7 @@ export interface FileRouteTypes {
     | '/app/settings'
     | '/sign-in/$'
     | '/sign-up/$'
+    | '/track/$shortId'
     | '/app/'
     | '/app/orders/$shortId'
     | '/app/products/$productId'
@@ -239,6 +251,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   SignInSplatRoute: typeof SignInSplatRoute
   SignUpSplatRoute: typeof SignUpSplatRoute
+  TrackShortIdRoute: typeof TrackShortIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -298,6 +311,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/track/$shortId': {
+      id: '/track/$shortId'
+      path: '/track/$shortId'
+      fullPath: '/track/$shortId'
+      preLoaderRoute: typeof TrackShortIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/sign-up/$': {
       id: '/sign-up/$'
@@ -399,6 +419,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   SignInSplatRoute: SignInSplatRoute,
   SignUpSplatRoute: SignUpSplatRoute,
+  TrackShortIdRoute: TrackShortIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

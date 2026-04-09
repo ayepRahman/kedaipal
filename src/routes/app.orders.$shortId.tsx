@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
-import { ChevronLeft, MessageCircle, User } from "lucide-react";
+import { ChevronLeft, ExternalLink, MessageCircle, Truck, User } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
@@ -71,6 +71,8 @@ function OrderDetailRoute() {
 	const order = useQuery(api.orders.get, { shortId });
 	const updateStatus = useMutation(api.orders.updateStatus);
 	const [pending, setPending] = useState<Transition | null>(null);
+	const [carrierUrl, setCarrierUrl] = useState("");
+	const [showCarrierInput, setShowCarrierInput] = useState(false);
 
 	if (order === undefined) {
 		return <OrderDetailSkeleton />;
@@ -83,9 +85,21 @@ function OrderDetailRoute() {
 
 	async function handleTransition(next: Transition) {
 		if (!order) return;
+		if (next === "shipped" && !showCarrierInput) {
+			setShowCarrierInput(true);
+			return;
+		}
 		setPending(next);
 		try {
-			await updateStatus({ orderId: order._id, status: next });
+			await updateStatus({
+				orderId: order._id,
+				status: next,
+				...(next === "shipped" && carrierUrl.trim()
+					? { carrierTrackingUrl: carrierUrl.trim() }
+					: {}),
+			});
+			setShowCarrierInput(false);
+			setCarrierUrl("");
 		} catch (err) {
 			toast.error(convexErrorMessage(err));
 		} finally {
@@ -180,25 +194,81 @@ function OrderDetailRoute() {
 				</div>
 			</section>
 
+			{/* Carrier tracking link (if already set) */}
+			{order.carrierTrackingUrl ? (
+				<section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+					<p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+						Carrier Tracking
+					</p>
+					<a
+						href={order.carrierTrackingUrl}
+						target="_blank"
+						rel="noreferrer"
+						className="flex items-center gap-2 text-sm text-accent underline underline-offset-2"
+					>
+						<Truck className="size-4 shrink-0" />
+						<span className="truncate">{order.carrierTrackingUrl}</span>
+						<ExternalLink className="size-3 shrink-0" />
+					</a>
+				</section>
+			) : null}
+
 			{/* Status actions */}
 			{transitions.length > 0 ? (
 				<section className="flex flex-col gap-3">
 					<p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
 						Update Status
 					</p>
-					<div className="flex flex-col gap-2">
-						{transitions.map((t) => (
-							<Button
-								key={t}
-								onClick={() => handleTransition(t)}
-								disabled={pending !== null}
-								variant={t === "cancelled" ? "secondary" : "default"}
-								className="h-11 w-full"
-							>
-								{pending === t ? "Updating…" : TRANSITION_LABELS[t]}
-							</Button>
-						))}
-					</div>
+					{showCarrierInput ? (
+						<div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
+							<div className="flex items-center gap-2">
+								<Truck className="size-4 text-muted-foreground" />
+								<p className="text-sm font-medium">Carrier tracking link</p>
+								<span className="ml-auto text-xs text-muted-foreground">optional</span>
+							</div>
+							<input
+								type="url"
+								value={carrierUrl}
+								onChange={(e) => setCarrierUrl(e.target.value)}
+								placeholder="https://www.spx.my/track?..."
+								className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+							/>
+							<p className="text-xs text-muted-foreground">
+								SPX, Lalamove, NinjaVan, J&amp;T, etc. Sent to the customer via WhatsApp.
+							</p>
+							<div className="flex gap-2 pt-1">
+								<Button
+									onClick={() => handleTransition("shipped")}
+									disabled={pending !== null}
+									className="h-10 flex-1"
+								>
+									{pending === "shipped" ? "Updating…" : "Mark as Shipped"}
+								</Button>
+								<Button
+									variant="secondary"
+									onClick={() => { setShowCarrierInput(false); setCarrierUrl(""); }}
+									disabled={pending !== null}
+									className="h-10"
+								>
+									Cancel
+								</Button>
+							</div>
+						</div>
+					) : (
+						<div className="flex flex-col gap-2">
+							{transitions.map((t) => (
+								<Button
+									key={t}
+									onClick={() => handleTransition(t)}
+									disabled={pending !== null}
+									variant={t === "cancelled" ? "secondary" : "default"}
+									className="h-11 w-full"
+								>
+									{pending === t ? "Updating…" : TRANSITION_LABELS[t]}
+								</Button>
+							))}
+						</div>
+					)}
 				</section>
 			) : null}
 		</div>

@@ -107,6 +107,8 @@ export const getOrderWithRetailer = internalQuery({
 		customerWaPhone: string | undefined;
 		storeName: string;
 		retailerWaPhone: string | undefined;
+		retailerSlug: string;
+		carrierTrackingUrl: string | undefined;
 		locale: Locale;
 		messageTemplates: MessageTemplates | undefined;
 	} | null> => {
@@ -120,6 +122,8 @@ export const getOrderWithRetailer = internalQuery({
 			customerWaPhone: order.customer.waPhone,
 			storeName: retailer.storeName,
 			retailerWaPhone: retailer.waPhone,
+			retailerSlug: retailer.slug,
+			carrierTrackingUrl: order.carrierTrackingUrl,
 			locale: (retailer.locale as Locale | undefined) ?? "en",
 			messageTemplates: retailer.messageTemplates as
 				| MessageTemplates
@@ -216,11 +220,13 @@ export const handleInbound = internalAction({
 		const locale = pickLocale(meta?.locale);
 		const storeName = meta?.storeName ?? "Kedaipal";
 		const contactPhone = meta?.retailerWaPhone;
+		const appUrl = process.env.APP_URL ?? "https://kedaipal.com";
+		const trackingUrl = `${appUrl}/track/${shortId}`;
 		const confirmBody = renderMessage(
 			meta?.messageTemplates,
 			locale,
 			"confirm",
-			{ shortId, storeName, contactPhone },
+			{ shortId, storeName, contactPhone, trackingUrl },
 		);
 		const paymentBlock = renderPaymentInstructions(
 			locale,
@@ -268,6 +274,8 @@ export const notifyStatusChange = internalAction({
 			customerWaPhone: string | undefined;
 			storeName: string;
 			retailerWaPhone: string | undefined;
+			retailerSlug: string;
+			carrierTrackingUrl: string | undefined;
 			locale: Locale;
 			messageTemplates: MessageTemplates | undefined;
 		};
@@ -284,11 +292,15 @@ export const notifyStatusChange = internalAction({
 		if (!meta.customerWaPhone) return;
 		if (meta.status === "pending" || meta.status === "confirmed") return;
 
+		const appUrl = process.env.APP_URL ?? "https://kedaipal.com";
+		const trackingUrl = `${appUrl}/track/${meta.shortId}`;
 		const locale = pickLocale(meta.locale);
 		const body = renderMessage(meta.messageTemplates, locale, meta.status, {
 			shortId: meta.shortId,
 			storeName: meta.storeName,
 			contactPhone: meta.retailerWaPhone,
+			trackingUrl,
+			carrierTrackingUrl: meta.carrierTrackingUrl,
 		});
 		try {
 			await sendText(meta.customerWaPhone, body);

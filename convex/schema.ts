@@ -113,6 +113,10 @@ export default defineSchema({
 			name: v.optional(v.string()),
 			waPhone: v.optional(v.string()),
 		}),
+		// Optional external carrier tracking URL set by the retailer when marking
+		// shipped. Surfaced on the customer tracking page and included in the
+		// WhatsApp shipped notification.
+		carrierTrackingUrl: v.optional(v.string()),
 		createdAt: v.number(),
 		updatedAt: v.number(),
 	})

@@ -6,6 +6,8 @@ export type CopyVars = {
 	shortId: string;
 	storeName: string;
 	contactPhone?: string;
+	trackingUrl?: string;
+	carrierTrackingUrl?: string;
 };
 
 export type StatusKey = "packed" | "shipped" | "delivered" | "cancelled";
@@ -25,12 +27,13 @@ function contactLine(contactPhone: string | undefined, locale: Locale): string {
 
 export const waCopy: Record<Locale, LocaleCopy> = {
 	en: {
-		confirm: ({ shortId, storeName, contactPhone }) =>
-			`✅ Order ${shortId} confirmed. We'll update you when it ships. — ${storeName}${contactLine(contactPhone, "en")}`,
+		confirm: ({ shortId, storeName, contactPhone, trackingUrl }) =>
+			`✅ Order ${shortId} confirmed. We'll update you when it ships. — ${storeName}${trackingUrl ? `\n\nTrack your order: ${trackingUrl}` : ""}${contactLine(contactPhone, "en")}`,
 		status: {
-			packed: ({ shortId }) =>
-				`📦 Order ${shortId} is packed and ready to ship.`,
-			shipped: ({ shortId }) => `🚚 Order ${shortId} is on the way!`,
+			packed: ({ shortId, trackingUrl }) =>
+				`📦 Order ${shortId} is packed and ready to ship.${trackingUrl ? `\n\nTrack your order: ${trackingUrl}` : ""}`,
+			shipped: ({ shortId, carrierTrackingUrl, trackingUrl }) =>
+				`🚚 Order ${shortId} is on the way!${carrierTrackingUrl ? `\n\nTrack shipment: ${carrierTrackingUrl}` : ""}${trackingUrl ? `\n\nOrder status: ${trackingUrl}` : ""}`,
 			delivered: ({ shortId }) => `🎉 Order ${shortId} delivered. Thank you!`,
 			cancelled: ({ shortId, contactPhone }) =>
 				`❌ Order ${shortId} was cancelled. Contact us if this is unexpected.${contactLine(contactPhone, "en")}`,
@@ -39,12 +42,13 @@ export const waCopy: Record<Locale, LocaleCopy> = {
 			"Hi! To place an order, browse our catalog and tap Checkout — you'll be sent back here with an order ID.",
 	},
 	ms: {
-		confirm: ({ shortId, storeName, contactPhone }) =>
-			`✅ Pesanan ${shortId} telah disahkan. Kami akan maklumkan apabila dihantar. — ${storeName}${contactLine(contactPhone, "ms")}`,
+		confirm: ({ shortId, storeName, contactPhone, trackingUrl }) =>
+			`✅ Pesanan ${shortId} telah disahkan. Kami akan maklumkan apabila dihantar. — ${storeName}${trackingUrl ? `\n\nJejak pesanan anda: ${trackingUrl}` : ""}${contactLine(contactPhone, "ms")}`,
 		status: {
-			packed: ({ shortId }) =>
-				`📦 Pesanan ${shortId} sudah dibungkus dan sedia untuk dihantar.`,
-			shipped: ({ shortId }) => `🚚 Pesanan ${shortId} dalam perjalanan!`,
+			packed: ({ shortId, trackingUrl }) =>
+				`📦 Pesanan ${shortId} sudah dibungkus dan sedia untuk dihantar.${trackingUrl ? `\n\nJejak pesanan anda: ${trackingUrl}` : ""}`,
+			shipped: ({ shortId, carrierTrackingUrl, trackingUrl }) =>
+				`🚚 Pesanan ${shortId} dalam perjalanan!${carrierTrackingUrl ? `\n\nJejak penghantaran: ${carrierTrackingUrl}` : ""}${trackingUrl ? `\n\nStatus pesanan: ${trackingUrl}` : ""}`,
 			delivered: ({ shortId }) =>
 				`🎉 Pesanan ${shortId} telah sampai. Terima kasih!`,
 			cancelled: ({ shortId, contactPhone }) =>
@@ -87,7 +91,9 @@ function interpolate(template: string, vars: CopyVars): string {
 	return template
 		.replaceAll("{shortId}", vars.shortId)
 		.replaceAll("{storeName}", vars.storeName)
-		.replaceAll("{contactPhone}", vars.contactPhone ?? "");
+		.replaceAll("{contactPhone}", vars.contactPhone ?? "")
+		.replaceAll("{trackingUrl}", vars.trackingUrl ?? "")
+		.replaceAll("{carrierTrackingUrl}", vars.carrierTrackingUrl ?? "");
 }
 
 function getDefault(locale: Locale, key: TemplateKey, vars: CopyVars): string {
