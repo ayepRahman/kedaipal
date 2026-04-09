@@ -13,6 +13,7 @@ import {
 	renderMessage,
 	renderPaymentInstructions,
 	SHORT_ID_REGEX,
+	type DeliveryMethod,
 	type Locale,
 	type MessageTemplates,
 	type PaymentInstructions,
@@ -109,6 +110,7 @@ export const getOrderWithRetailer = internalQuery({
 		retailerWaPhone: string | undefined;
 		retailerSlug: string;
 		carrierTrackingUrl: string | undefined;
+		deliveryMethod: DeliveryMethod;
 		locale: Locale;
 		messageTemplates: MessageTemplates | undefined;
 	} | null> => {
@@ -124,6 +126,7 @@ export const getOrderWithRetailer = internalQuery({
 			retailerWaPhone: retailer.waPhone,
 			retailerSlug: retailer.slug,
 			carrierTrackingUrl: order.carrierTrackingUrl,
+			deliveryMethod: (order.deliveryMethod as DeliveryMethod | undefined) ?? "delivery",
 			locale: (retailer.locale as Locale | undefined) ?? "en",
 			messageTemplates: retailer.messageTemplates as
 				| MessageTemplates
@@ -142,6 +145,7 @@ export const getRetailerLocaleForOrder = internalQuery({
 		storeName: string;
 		retailerWaPhone: string | undefined;
 		messageTemplates: MessageTemplates | undefined;
+		deliveryMethod: DeliveryMethod;
 		payment: ResolvedPayment;
 	} | null> => {
 		const order = await ctx.db
@@ -166,6 +170,7 @@ export const getRetailerLocaleForOrder = internalQuery({
 			messageTemplates: retailer.messageTemplates as
 				| MessageTemplates
 				| undefined,
+			deliveryMethod: (order.deliveryMethod as DeliveryMethod | undefined) ?? "delivery",
 			payment: { instructions, qrImageUrl },
 		};
 	},
@@ -226,7 +231,7 @@ export const handleInbound = internalAction({
 			meta?.messageTemplates,
 			locale,
 			"confirm",
-			{ shortId, storeName, contactPhone, trackingUrl },
+			{ shortId, storeName, contactPhone, trackingUrl, deliveryMethod: meta?.deliveryMethod ?? "delivery" },
 		);
 		const paymentBlock = renderPaymentInstructions(
 			locale,
@@ -276,6 +281,7 @@ export const notifyStatusChange = internalAction({
 			retailerWaPhone: string | undefined;
 			retailerSlug: string;
 			carrierTrackingUrl: string | undefined;
+			deliveryMethod: DeliveryMethod;
 			locale: Locale;
 			messageTemplates: MessageTemplates | undefined;
 		};
@@ -301,6 +307,7 @@ export const notifyStatusChange = internalAction({
 			contactPhone: meta.retailerWaPhone,
 			trackingUrl,
 			carrierTrackingUrl: meta.carrierTrackingUrl,
+			deliveryMethod: meta.deliveryMethod,
 		});
 		try {
 			await sendText(meta.customerWaPhone, body);

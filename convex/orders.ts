@@ -49,6 +49,9 @@ export const create = mutation({
 			name: v.optional(v.string()),
 			waPhone: v.optional(v.string()),
 		}),
+		deliveryMethod: v.optional(
+			v.union(v.literal("delivery"), v.literal("self_collect")),
+		),
 	},
 	handler: async (ctx, args): Promise<{ shortId: string }> => {
 		// Rate limit FIRST — public endpoint, throttle per storefront before any DB reads.
@@ -57,13 +60,15 @@ export const create = mutation({
 			throws: true,
 		});
 
-		// Validate shopper's WhatsApp number — required for confirmation flow.
-		// Reuses the same E.164-ish validator as retailer onboarding.
-		let customerWaPhone: string;
-		try {
-			customerWaPhone = assertValidWaPhone(args.customer.waPhone ?? "");
-		} catch (err) {
-			throw new ConvexError((err as Error).message);
+		// Customer waPhone is optional at checkout — the WhatsApp webhook
+		// stamps it automatically when the shopper sends the order message.
+		let customerWaPhone: string | undefined;
+		if (args.customer.waPhone) {
+			try {
+				customerWaPhone = assertValidWaPhone(args.customer.waPhone);
+			} catch (err) {
+				throw new ConvexError((err as Error).message);
+			}
 		}
 		const sanitizedCustomer = {
 			name: args.customer.name?.trim() || undefined,
@@ -150,6 +155,7 @@ export const create = mutation({
 			status: "pending",
 			channel: args.channel,
 			customer: sanitizedCustomer,
+			deliveryMethod: args.deliveryMethod ?? "delivery",
 			createdAt: now,
 			updatedAt: now,
 		});

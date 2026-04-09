@@ -1,5 +1,5 @@
 import { useMutation } from "convex/react";
-import { Trash2, X } from "lucide-react";
+import { Package, Trash2, Truck, X } from "lucide-react";
 import { Dialog } from "radix-ui";
 import { type FormEvent, useState } from "react";
 import { api } from "../../../convex/_generated/api";
@@ -23,6 +23,7 @@ function buildWaMessage(
 	storeName: string,
 	shortId: string,
 	cart: UseCart,
+	deliveryMethod: "delivery" | "self_collect",
 ): string {
 	const lines: string[] = [];
 	lines.push(`Hi ${storeName}, I'd like to place this order:`);
@@ -33,6 +34,7 @@ function buildWaMessage(
 	}
 	lines.push("");
 	lines.push(`Total: ${formatPrice(cart.total, cart.currency)}`);
+	lines.push(deliveryMethod === "self_collect" ? "📍 Self Collect" : "🚚 Delivery");
 	return lines.join("\n");
 }
 
@@ -50,7 +52,7 @@ export function CheckoutSheet({
 	const noCheckoutPhone = !checkoutPhone;
 
 	const form = useAppForm({
-		defaultValues: { name: "", waPhone: "" },
+		defaultValues: { name: "", deliveryMethod: "delivery" as "delivery" | "self_collect" },
 		validators: { onChange: checkoutFormSchema },
 		onSubmit: async ({ value }) => {
 			setServerError(null);
@@ -61,7 +63,6 @@ export function CheckoutSheet({
 				);
 				return;
 			}
-			const normalizedShopperPhone = value.waPhone.replace(/[\s\-()+]/g, "");
 			try {
 				const { shortId } = await createOrder({
 					retailerId,
@@ -73,10 +74,10 @@ export function CheckoutSheet({
 					channel: "whatsapp",
 					customer: {
 						name: value.name?.trim() || undefined,
-						waPhone: normalizedShopperPhone,
 					},
+					deliveryMethod: value.deliveryMethod,
 				});
-				const message = buildWaMessage(storeName, shortId, cart);
+				const message = buildWaMessage(storeName, shortId, cart, value.deliveryMethod);
 				const url = `https://wa.me/${checkoutPhone}?text=${encodeURIComponent(message)}`;
 				cart.clearCart();
 				form.reset();
@@ -183,19 +184,41 @@ export function CheckoutSheet({
 										/>
 									)}
 								/>
+								{/* Delivery method */}
 								<form.AppField
-									name="waPhone"
+									name="deliveryMethod"
 									children={(field) => (
-										<field.TextField
-											label="Your WhatsApp number"
-											placeholder="60123456789"
-											type="tel"
-											inputMode="tel"
-											autoComplete="tel"
-											mono
-											required
-											description="Country code + number, digits only. We use this to confirm your order."
-										/>
+										<fieldset className="flex flex-col gap-2">
+											<legend className="text-sm font-medium">
+												How would you like to receive your order?
+											</legend>
+											<div className="grid grid-cols-2 gap-2">
+												<button
+													type="button"
+													onClick={() => field.handleChange("delivery")}
+													className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-3 text-sm font-medium transition-colors ${
+														field.state.value === "delivery"
+															? "border-accent bg-accent/5 text-accent"
+															: "border-border bg-card text-muted-foreground hover:border-accent/40"
+													}`}
+												>
+													<Truck className="size-5" />
+													Delivery
+												</button>
+												<button
+													type="button"
+													onClick={() => field.handleChange("self_collect")}
+													className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-3 text-sm font-medium transition-colors ${
+														field.state.value === "self_collect"
+															? "border-accent bg-accent/5 text-accent"
+															: "border-border bg-card text-muted-foreground hover:border-accent/40"
+													}`}
+												>
+													<Package className="size-5" />
+													Self Collect
+												</button>
+											</div>
+										</fieldset>
 									)}
 								/>
 							</div>

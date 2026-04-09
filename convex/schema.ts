@@ -46,7 +46,7 @@ export default defineSchema({
 		),
 		// Optional payment payout details surfaced to the shopper in the WA
 		// confirmation reply. Each field is independent — retailer can configure
-		// bank only, QR only, both, or neither (COD).
+		// bank only, QR only, or both.
 		paymentInstructions: v.optional(
 			v.object({
 				bankName: v.optional(v.string()),
@@ -113,9 +113,15 @@ export default defineSchema({
 			name: v.optional(v.string()),
 			waPhone: v.optional(v.string()),
 		}),
+		// How the customer receives the order. "delivery" = shipped via carrier;
+		// "self_collect" = customer picks up from the store. Defaults to "delivery"
+		// for orders created before this field existed.
+		deliveryMethod: v.optional(
+			v.union(v.literal("delivery"), v.literal("self_collect")),
+		),
 		// Optional external carrier tracking URL set by the retailer when marking
 		// shipped. Surfaced on the customer tracking page and included in the
-		// WhatsApp shipped notification.
+		// WhatsApp shipped notification. Only relevant for delivery orders.
 		carrierTrackingUrl: v.optional(v.string()),
 		createdAt: v.number(),
 		updatedAt: v.number(),

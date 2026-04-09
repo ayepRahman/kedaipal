@@ -2,12 +2,15 @@
 
 export type Locale = "en" | "ms";
 
+export type DeliveryMethod = "delivery" | "self_collect";
+
 export type CopyVars = {
 	shortId: string;
 	storeName: string;
 	contactPhone?: string;
 	trackingUrl?: string;
 	carrierTrackingUrl?: string;
+	deliveryMethod?: DeliveryMethod;
 };
 
 export type StatusKey = "packed" | "shipped" | "delivered" | "cancelled";
@@ -27,14 +30,31 @@ function contactLine(contactPhone: string | undefined, locale: Locale): string {
 
 export const waCopy: Record<Locale, LocaleCopy> = {
 	en: {
-		confirm: ({ shortId, storeName, contactPhone, trackingUrl }) =>
-			`✅ Order ${shortId} confirmed. We'll update you when it ships. — ${storeName}${trackingUrl ? `\n\nTrack your order: ${trackingUrl}` : ""}${contactLine(contactPhone, "en")}`,
+		confirm: ({ shortId, storeName, contactPhone, trackingUrl, deliveryMethod }) => {
+			const method = deliveryMethod === "self_collect"
+				? "We'll let you know when it's ready for pickup."
+				: "We'll update you when it ships.";
+			return `✅ Order ${shortId} confirmed. ${method} — ${storeName}${trackingUrl ? `\n\nTrack your order: ${trackingUrl}` : ""}${contactLine(contactPhone, "en")}`;
+		},
 		status: {
-			packed: ({ shortId, trackingUrl }) =>
-				`📦 Order ${shortId} is packed and ready to ship.${trackingUrl ? `\n\nTrack your order: ${trackingUrl}` : ""}`,
-			shipped: ({ shortId, carrierTrackingUrl, trackingUrl }) =>
-				`🚚 Order ${shortId} is on the way!${carrierTrackingUrl ? `\n\nTrack shipment: ${carrierTrackingUrl}` : ""}${trackingUrl ? `\n\nOrder status: ${trackingUrl}` : ""}`,
-			delivered: ({ shortId }) => `🎉 Order ${shortId} delivered. Thank you!`,
+			packed: ({ shortId, trackingUrl, deliveryMethod }) => {
+				const msg = deliveryMethod === "self_collect"
+					? `📦 Order ${shortId} is packed and ready for pickup.`
+					: `📦 Order ${shortId} is packed and ready to ship.`;
+				return `${msg}${trackingUrl ? `\n\nTrack your order: ${trackingUrl}` : ""}`;
+			},
+			shipped: ({ shortId, carrierTrackingUrl, trackingUrl, deliveryMethod }) => {
+				if (deliveryMethod === "self_collect") {
+					return `🏪 Order ${shortId} is ready for pickup!${trackingUrl ? `\n\nOrder status: ${trackingUrl}` : ""}`;
+				}
+				return `🚚 Order ${shortId} is on the way!${carrierTrackingUrl ? `\n\nTrack shipment: ${carrierTrackingUrl}` : ""}${trackingUrl ? `\n\nOrder status: ${trackingUrl}` : ""}`;
+			},
+			delivered: ({ shortId, deliveryMethod }) => {
+				if (deliveryMethod === "self_collect") {
+					return `🎉 Order ${shortId} collected. Thank you!`;
+				}
+				return `🎉 Order ${shortId} delivered. Thank you!`;
+			},
 			cancelled: ({ shortId, contactPhone }) =>
 				`❌ Order ${shortId} was cancelled. Contact us if this is unexpected.${contactLine(contactPhone, "en")}`,
 		},
@@ -42,15 +62,31 @@ export const waCopy: Record<Locale, LocaleCopy> = {
 			"Hi! To place an order, browse our catalog and tap Checkout — you'll be sent back here with an order ID.",
 	},
 	ms: {
-		confirm: ({ shortId, storeName, contactPhone, trackingUrl }) =>
-			`✅ Pesanan ${shortId} telah disahkan. Kami akan maklumkan apabila dihantar. — ${storeName}${trackingUrl ? `\n\nJejak pesanan anda: ${trackingUrl}` : ""}${contactLine(contactPhone, "ms")}`,
+		confirm: ({ shortId, storeName, contactPhone, trackingUrl, deliveryMethod }) => {
+			const method = deliveryMethod === "self_collect"
+				? "Kami akan maklumkan apabila sedia untuk diambil."
+				: "Kami akan maklumkan apabila dihantar.";
+			return `✅ Pesanan ${shortId} telah disahkan. ${method} — ${storeName}${trackingUrl ? `\n\nJejak pesanan anda: ${trackingUrl}` : ""}${contactLine(contactPhone, "ms")}`;
+		},
 		status: {
-			packed: ({ shortId, trackingUrl }) =>
-				`📦 Pesanan ${shortId} sudah dibungkus dan sedia untuk dihantar.${trackingUrl ? `\n\nJejak pesanan anda: ${trackingUrl}` : ""}`,
-			shipped: ({ shortId, carrierTrackingUrl, trackingUrl }) =>
-				`🚚 Pesanan ${shortId} dalam perjalanan!${carrierTrackingUrl ? `\n\nJejak penghantaran: ${carrierTrackingUrl}` : ""}${trackingUrl ? `\n\nStatus pesanan: ${trackingUrl}` : ""}`,
-			delivered: ({ shortId }) =>
-				`🎉 Pesanan ${shortId} telah sampai. Terima kasih!`,
+			packed: ({ shortId, trackingUrl, deliveryMethod }) => {
+				const msg = deliveryMethod === "self_collect"
+					? `📦 Pesanan ${shortId} sudah dibungkus dan sedia untuk diambil.`
+					: `📦 Pesanan ${shortId} sudah dibungkus dan sedia untuk dihantar.`;
+				return `${msg}${trackingUrl ? `\n\nJejak pesanan anda: ${trackingUrl}` : ""}`;
+			},
+			shipped: ({ shortId, carrierTrackingUrl, trackingUrl, deliveryMethod }) => {
+				if (deliveryMethod === "self_collect") {
+					return `🏪 Pesanan ${shortId} sedia untuk diambil!${trackingUrl ? `\n\nStatus pesanan: ${trackingUrl}` : ""}`;
+				}
+				return `🚚 Pesanan ${shortId} dalam perjalanan!${carrierTrackingUrl ? `\n\nJejak penghantaran: ${carrierTrackingUrl}` : ""}${trackingUrl ? `\n\nStatus pesanan: ${trackingUrl}` : ""}`;
+			},
+			delivered: ({ shortId, deliveryMethod }) => {
+				if (deliveryMethod === "self_collect") {
+					return `🎉 Pesanan ${shortId} telah diambil. Terima kasih!`;
+				}
+				return `🎉 Pesanan ${shortId} telah sampai. Terima kasih!`;
+			},
 			cancelled: ({ shortId, contactPhone }) =>
 				`❌ Pesanan ${shortId} telah dibatalkan. Hubungi kami jika ini tidak dijangka.${contactLine(contactPhone, "ms")}`,
 		},
@@ -93,7 +129,8 @@ function interpolate(template: string, vars: CopyVars): string {
 		.replaceAll("{storeName}", vars.storeName)
 		.replaceAll("{contactPhone}", vars.contactPhone ?? "")
 		.replaceAll("{trackingUrl}", vars.trackingUrl ?? "")
-		.replaceAll("{carrierTrackingUrl}", vars.carrierTrackingUrl ?? "");
+		.replaceAll("{carrierTrackingUrl}", vars.carrierTrackingUrl ?? "")
+		.replaceAll("{deliveryMethod}", vars.deliveryMethod ?? "delivery");
 }
 
 function getDefault(locale: Locale, key: TemplateKey, vars: CopyVars): string {

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
-import { ChevronLeft, ExternalLink, MessageCircle, Truck, User } from "lucide-react";
+import { ChevronLeft, ExternalLink, MessageCircle, Package, Truck, User } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
@@ -48,6 +48,7 @@ function OrderDetailSkeleton() {
 }
 
 type Transition = "confirmed" | "packed" | "shipped" | "delivered" | "cancelled";
+type DeliveryMethod = "delivery" | "self_collect";
 
 const NEXT_STATUS: Record<string, Transition[]> = {
 	pending: ["confirmed", "cancelled"],
@@ -58,13 +59,25 @@ const NEXT_STATUS: Record<string, Transition[]> = {
 	cancelled: [],
 };
 
-const TRANSITION_LABELS: Record<Transition, string> = {
+const DELIVERY_TRANSITION_LABELS: Record<Transition, string> = {
 	confirmed: "Confirm Order",
 	packed: "Mark as Packed",
 	shipped: "Mark as Shipped",
 	delivered: "Mark as Delivered",
 	cancelled: "Cancel Order",
 };
+
+const SELF_COLLECT_TRANSITION_LABELS: Record<Transition, string> = {
+	confirmed: "Confirm Order",
+	packed: "Mark as Packed",
+	shipped: "Ready for Pickup",
+	delivered: "Mark as Collected",
+	cancelled: "Cancel Order",
+};
+
+function getTransitionLabels(method: DeliveryMethod): Record<Transition, string> {
+	return method === "self_collect" ? SELF_COLLECT_TRANSITION_LABELS : DELIVERY_TRANSITION_LABELS;
+}
 
 function OrderDetailRoute() {
 	const { shortId } = Route.useParams();
@@ -82,8 +95,11 @@ function OrderDetailRoute() {
 		return <p className="text-sm text-destructive">Order not found.</p>;
 	}
 
+	const deliveryMethod = (order.deliveryMethod ?? "delivery") as DeliveryMethod;
+	const isSelfCollect = deliveryMethod === "self_collect";
+	const transitionLabels = getTransitionLabels(deliveryMethod);
 	const transitions = NEXT_STATUS[order.status] ?? [];
-	const showCarrierSection = !["pending", "cancelled"].includes(order.status);
+	const showCarrierSection = !isSelfCollect && !["pending", "cancelled"].includes(order.status);
 	const editingCarrier = carrierInput !== null;
 
 	async function handleTransition(next: Transition) {
@@ -169,6 +185,25 @@ function OrderDetailRoute() {
 							<MessageCircle className="size-4" />
 						</a>
 					) : null}
+				</div>
+			</section>
+
+			{/* Delivery method */}
+			<section className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+				<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted">
+					{isSelfCollect ? (
+						<Package className="size-4 text-muted-foreground" />
+					) : (
+						<Truck className="size-4 text-muted-foreground" />
+					)}
+				</div>
+				<div>
+					<p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+						Fulfillment
+					</p>
+					<p className="text-sm font-medium">
+						{isSelfCollect ? "Self Collect" : "Delivery"}
+					</p>
 				</div>
 			</section>
 
@@ -283,7 +318,7 @@ function OrderDetailRoute() {
 								variant={t === "cancelled" ? "secondary" : "default"}
 								className="h-11 w-full"
 							>
-								{pending === t ? "Updating…" : TRANSITION_LABELS[t]}
+								{pending === t ? "Updating…" : transitionLabels[t]}
 							</Button>
 						))}
 					</div>

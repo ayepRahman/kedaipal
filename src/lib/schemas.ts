@@ -38,9 +38,11 @@ export type SettingsWaPhoneFormValues = z.input<
 // Customer name on checkout — always a string (empty allowed); only the
 // length is constrained. We treat empty/whitespace as "no name supplied"
 // at submit time.
+export const deliveryMethodSchema = z.enum(["delivery", "self_collect"]);
+
 export const checkoutFormSchema = z.object({
 	name: z.string().max(60, "Name must be at most 60 characters"),
-	waPhone: waPhoneSchema,
+	deliveryMethod: deliveryMethodSchema,
 });
 
 export type CheckoutFormValues = z.input<typeof checkoutFormSchema>;

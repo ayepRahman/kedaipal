@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
-import { CheckCircle, Clock, ExternalLink, Package, Truck, XCircle } from "lucide-react";
+import { CheckCircle, Clock, ExternalLink, Package, Store, Truck, XCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { api } from "../../convex/_generated/api";
 import { getConvexHttpClient, SITE_URL } from "../lib/convex-server";
@@ -26,41 +26,44 @@ export const Route = createFileRoute("/track/$shortId")({
 	component: TrackingRoute,
 });
 
-const STATUS_CONFIG: Record<
-	string,
-	{ label: string; icon: ReactNode; color: string }
-> = {
-	pending: {
-		label: "Order Received",
-		icon: <Clock className="size-5" />,
-		color: "text-amber-500",
-	},
-	confirmed: {
-		label: "Confirmed",
-		icon: <CheckCircle className="size-5" />,
-		color: "text-blue-500",
-	},
-	packed: {
-		label: "Packed",
-		icon: <Package className="size-5" />,
-		color: "text-violet-500",
-	},
-	shipped: {
-		label: "On the Way",
-		icon: <Truck className="size-5" />,
-		color: "text-orange-500",
-	},
-	delivered: {
-		label: "Delivered",
-		icon: <CheckCircle className="size-5" />,
-		color: "text-green-500",
-	},
-	cancelled: {
-		label: "Cancelled",
-		icon: <XCircle className="size-5" />,
-		color: "text-destructive",
-	},
-};
+type DeliveryMethod = "delivery" | "self_collect";
+
+type StatusCfg = { label: string; icon: ReactNode; color: string };
+
+function getStatusConfig(method: DeliveryMethod): Record<string, StatusCfg> {
+	return {
+		pending: {
+			label: "Order Received",
+			icon: <Clock className="size-5" />,
+			color: "text-amber-500",
+		},
+		confirmed: {
+			label: "Confirmed",
+			icon: <CheckCircle className="size-5" />,
+			color: "text-blue-500",
+		},
+		packed: {
+			label: "Packed",
+			icon: <Package className="size-5" />,
+			color: "text-violet-500",
+		},
+		shipped: {
+			label: method === "self_collect" ? "Ready for Pickup" : "On the Way",
+			icon: method === "self_collect" ? <Store className="size-5" /> : <Truck className="size-5" />,
+			color: "text-orange-500",
+		},
+		delivered: {
+			label: method === "self_collect" ? "Collected" : "Delivered",
+			icon: <CheckCircle className="size-5" />,
+			color: "text-green-500",
+		},
+		cancelled: {
+			label: "Cancelled",
+			icon: <XCircle className="size-5" />,
+			color: "text-destructive",
+		},
+	};
+}
 
 const STATUS_ORDER = [
 	"pending",
@@ -98,7 +101,10 @@ function TrackingRoute() {
 		return <OrderNotFound />;
 	}
 
-	const config = STATUS_CONFIG[order.status];
+	const deliveryMethod = (order.deliveryMethod ?? "delivery") as DeliveryMethod;
+	const isSelfCollect = deliveryMethod === "self_collect";
+	const statusConfig = getStatusConfig(deliveryMethod);
+	const config = statusConfig[order.status];
 	const isCancelled = order.status === "cancelled";
 
 	return (
@@ -137,7 +143,7 @@ function TrackingRoute() {
 						);
 						const isDone = i <= reached;
 						const isCurrent = s === order.status;
-						const sc = STATUS_CONFIG[s];
+						const sc = statusConfig[s];
 						return (
 							<div key={s} className="flex gap-3">
 								{/* spine */}
@@ -172,8 +178,8 @@ function TrackingRoute() {
 				</div>
 			) : null}
 
-			{/* Carrier tracking CTA */}
-			{order.carrierTrackingUrl ? (
+			{/* Carrier tracking CTA — only for delivery orders */}
+			{!isSelfCollect && order.carrierTrackingUrl ? (
 				<a
 					href={order.carrierTrackingUrl}
 					target="_blank"
@@ -185,6 +191,12 @@ function TrackingRoute() {
 					<ExternalLink className="size-3" />
 				</a>
 			) : null}
+
+			{/* Delivery method */}
+			<div className="mt-4 flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-sm font-medium text-muted-foreground">
+				{isSelfCollect ? <Package className="size-4" /> : <Truck className="size-4" />}
+				{isSelfCollect ? "Self Collect" : "Delivery"}
+			</div>
 
 			{/* Items */}
 			<section className="mt-6 flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">

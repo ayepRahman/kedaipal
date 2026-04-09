@@ -293,19 +293,24 @@ describe("orders", () => {
 		).rejects.toThrow(/Currency mismatch/);
 	});
 
-	test("rejects when customer waPhone is missing or invalid", async () => {
+	test("allows order without customer waPhone (webhook stamps it later)", async () => {
 		const t = setup();
 		const retailer = await seedRetailer(t, USER_A);
 		const productId = await seedProduct(t, USER_A, retailer._id);
-		await expect(
-			t.mutation(api.orders.create, {
-				retailerId: retailer._id,
-				items: [{ productId, quantity: 1 }],
-				currency: "MYR",
-				channel: "whatsapp",
-				customer: { name: "Ali" },
-			}),
-		).rejects.toThrow(/WhatsApp number/);
+		const { shortId } = await t.mutation(api.orders.create, {
+			retailerId: retailer._id,
+			items: [{ productId, quantity: 1 }],
+			currency: "MYR",
+			channel: "whatsapp",
+			customer: { name: "Ali" },
+		});
+		expect(shortId).toBeTruthy();
+	});
+
+	test("rejects when customer waPhone is invalid", async () => {
+		const t = setup();
+		const retailer = await seedRetailer(t, USER_A);
+		const productId = await seedProduct(t, USER_A, retailer._id);
 		await expect(
 			t.mutation(api.orders.create, {
 				retailerId: retailer._id,
