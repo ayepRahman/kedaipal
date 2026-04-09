@@ -54,6 +54,8 @@ jobs:
 
       - name: Deploy Convex
         run: pnpm dlx convex@latest deploy --yes
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
 
   deploy:
     name: Deploy to Cloudflare Workers
