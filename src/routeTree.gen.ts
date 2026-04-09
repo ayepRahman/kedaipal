@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as SlugRouteImport } from './routes/$slug'
@@ -24,6 +25,11 @@ import { Route as AppProductsImportRouteImport } from './routes/app.products.imp
 import { Route as AppProductsProductIdRouteImport } from './routes/app.products.$productId'
 import { Route as AppOrdersShortIdRouteImport } from './routes/app.orders.$shortId'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/$slug': typeof SlugRoute
   '/app': typeof AppRouteWithChildren
   '/onboarding': typeof OnboardingRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/app/settings': typeof AppSettingsRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$slug': typeof SlugRoute
   '/onboarding': typeof OnboardingRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/app/settings': typeof AppSettingsRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/$slug': typeof SlugRoute
   '/app': typeof AppRouteWithChildren
   '/onboarding': typeof OnboardingRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/app/settings': typeof AppSettingsRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
@@ -150,6 +159,7 @@ export interface FileRouteTypes {
     | '/$slug'
     | '/app'
     | '/onboarding'
+    | '/sitemap.xml'
     | '/app/settings'
     | '/sign-in/$'
     | '/sign-up/$'
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$slug'
     | '/onboarding'
+    | '/sitemap.xml'
     | '/app/settings'
     | '/sign-in/$'
     | '/sign-up/$'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/$slug'
     | '/app'
     | '/onboarding'
+    | '/sitemap.xml'
     | '/app/settings'
     | '/sign-in/$'
     | '/sign-up/$'
@@ -198,12 +210,20 @@ export interface RootRouteChildren {
   SlugRoute: typeof SlugRoute
   AppRoute: typeof AppRouteWithChildren
   OnboardingRoute: typeof OnboardingRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SignInSplatRoute: typeof SignInSplatRoute
   SignUpSplatRoute: typeof SignUpSplatRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
@@ -334,6 +354,7 @@ const rootRouteChildren: RootRouteChildren = {
   SlugRoute: SlugRoute,
   AppRoute: AppRouteWithChildren,
   OnboardingRoute: OnboardingRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   SignInSplatRoute: SignInSplatRoute,
   SignUpSplatRoute: SignUpSplatRoute,
 }

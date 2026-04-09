@@ -16,7 +16,7 @@ interface CheckoutSheetProps {
 	cart: UseCart;
 	retailerId: Id<"retailers">;
 	storeName: string;
-	waPhone: string | undefined;
+	checkoutPhone: string | undefined;
 }
 
 function buildWaMessage(
@@ -42,12 +42,12 @@ export function CheckoutSheet({
 	cart,
 	retailerId,
 	storeName,
-	waPhone,
+	checkoutPhone,
 }: CheckoutSheetProps) {
 	const createOrder = useMutation(api.orders.create);
 	const [serverError, setServerError] = useState<string | null>(null);
 
-	const noWaPhone = !waPhone;
+	const noCheckoutPhone = !checkoutPhone;
 
 	const form = useAppForm({
 		defaultValues: { name: "", waPhone: "" },
@@ -55,9 +55,9 @@ export function CheckoutSheet({
 		onSubmit: async ({ value }) => {
 			setServerError(null);
 			if (cart.items.length === 0) return;
-			if (noWaPhone) {
+			if (noCheckoutPhone) {
 				setServerError(
-					"This store hasn't configured a WhatsApp number yet — ask the owner to add one in settings.",
+					"Order checkout is temporarily unavailable. Please try again shortly.",
 				);
 				return;
 			}
@@ -77,7 +77,7 @@ export function CheckoutSheet({
 					},
 				});
 				const message = buildWaMessage(storeName, shortId, cart);
-				const url = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
+				const url = `https://wa.me/${checkoutPhone}?text=${encodeURIComponent(message)}`;
 				cart.clearCart();
 				form.reset();
 				onClose();
@@ -200,10 +200,9 @@ export function CheckoutSheet({
 								/>
 							</div>
 
-							{noWaPhone ? (
+							{noCheckoutPhone ? (
 								<p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-									This store hasn't set up WhatsApp yet. Ask the owner to add a
-									number in their dashboard settings.
+									Order checkout is temporarily unavailable. Please try again shortly or contact the store owner.
 								</p>
 							) : null}
 
@@ -233,7 +232,7 @@ export function CheckoutSheet({
 											!canSubmit ||
 											isSubmitting ||
 											cart.items.length === 0 ||
-											noWaPhone
+											noCheckoutPhone
 										}
 										className="h-12 w-full text-base"
 									>

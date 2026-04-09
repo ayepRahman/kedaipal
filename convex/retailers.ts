@@ -133,6 +133,7 @@ type RetailerPublic = {
 	slug: string;
 	storeName: string;
 	waPhone?: string;
+	checkoutPhone?: string;
 	logoStorageId?: string;
 	logoUrl?: string;
 	currency: SupportedCurrency;
@@ -232,6 +233,7 @@ export const getRetailerBySlug = query({
 					slug: active.slug,
 					storeName: active.storeName,
 					waPhone: active.waPhone,
+					checkoutPhone: process.env.WHATSAPP_CHECKOUT_PHONE ?? active.waPhone,
 					logoStorageId: active.logoStorageId,
 					logoUrl,
 					currency:
@@ -535,6 +537,18 @@ export const generatePaymentQrUploadUrl = mutation({
 /**
  * Daily cron entry point. Deletes `slugHistory` rows whose TTL has elapsed.
  */
+/**
+ * Public query returning all active retailer slugs and their last-modified
+ * timestamp — used to generate /sitemap.xml.
+ */
+export const listSlugsForSitemap = query({
+	args: {},
+	handler: async (ctx): Promise<Array<{ slug: string; updatedAt: number }>> => {
+		const rows = await ctx.db.query("retailers").collect();
+		return rows.map((r) => ({ slug: r.slug, updatedAt: r._creationTime }));
+	},
+});
+
 export const internalPurgeExpiredSlugHistory = internalMutation({
 	args: {},
 	handler: async (ctx) => {

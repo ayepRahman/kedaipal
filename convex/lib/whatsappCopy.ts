@@ -5,6 +5,7 @@ export type Locale = "en" | "ms";
 export type CopyVars = {
 	shortId: string;
 	storeName: string;
+	contactPhone?: string;
 };
 
 export type StatusKey = "packed" | "shipped" | "delivered" | "cancelled";
@@ -15,32 +16,39 @@ type LocaleCopy = {
 	unknownFallback: () => string;
 };
 
+function contactLine(contactPhone: string | undefined, locale: Locale): string {
+	if (!contactPhone) return "";
+	return locale === "ms"
+		? `\nHubungi kami: wa.me/${contactPhone}`
+		: `\nContact us: wa.me/${contactPhone}`;
+}
+
 export const waCopy: Record<Locale, LocaleCopy> = {
 	en: {
-		confirm: ({ shortId, storeName }) =>
-			`✅ Order ${shortId} confirmed. We'll update you when it ships. — ${storeName}`,
+		confirm: ({ shortId, storeName, contactPhone }) =>
+			`✅ Order ${shortId} confirmed. We'll update you when it ships. — ${storeName}${contactLine(contactPhone, "en")}`,
 		status: {
 			packed: ({ shortId }) =>
 				`📦 Order ${shortId} is packed and ready to ship.`,
 			shipped: ({ shortId }) => `🚚 Order ${shortId} is on the way!`,
 			delivered: ({ shortId }) => `🎉 Order ${shortId} delivered. Thank you!`,
-			cancelled: ({ shortId }) =>
-				`❌ Order ${shortId} was cancelled. Contact us if this is unexpected.`,
+			cancelled: ({ shortId, contactPhone }) =>
+				`❌ Order ${shortId} was cancelled. Contact us if this is unexpected.${contactLine(contactPhone, "en")}`,
 		},
 		unknownFallback: () =>
 			"Hi! To place an order, browse our catalog and tap Checkout — you'll be sent back here with an order ID.",
 	},
 	ms: {
-		confirm: ({ shortId, storeName }) =>
-			`✅ Pesanan ${shortId} telah disahkan. Kami akan maklumkan apabila dihantar. — ${storeName}`,
+		confirm: ({ shortId, storeName, contactPhone }) =>
+			`✅ Pesanan ${shortId} telah disahkan. Kami akan maklumkan apabila dihantar. — ${storeName}${contactLine(contactPhone, "ms")}`,
 		status: {
 			packed: ({ shortId }) =>
 				`📦 Pesanan ${shortId} sudah dibungkus dan sedia untuk dihantar.`,
 			shipped: ({ shortId }) => `🚚 Pesanan ${shortId} dalam perjalanan!`,
 			delivered: ({ shortId }) =>
 				`🎉 Pesanan ${shortId} telah sampai. Terima kasih!`,
-			cancelled: ({ shortId }) =>
-				`❌ Pesanan ${shortId} telah dibatalkan. Hubungi kami jika ini tidak dijangka.`,
+			cancelled: ({ shortId, contactPhone }) =>
+				`❌ Pesanan ${shortId} telah dibatalkan. Hubungi kami jika ini tidak dijangka.${contactLine(contactPhone, "ms")}`,
 		},
 		unknownFallback: () =>
 			"Hai! Untuk membuat pesanan, layari katalog kami dan tekan Checkout — anda akan dikembalikan ke sini dengan ID pesanan.",
@@ -78,7 +86,8 @@ export const TEMPLATE_MAX_LENGTH = 1000;
 function interpolate(template: string, vars: CopyVars): string {
 	return template
 		.replaceAll("{shortId}", vars.shortId)
-		.replaceAll("{storeName}", vars.storeName);
+		.replaceAll("{storeName}", vars.storeName)
+		.replaceAll("{contactPhone}", vars.contactPhone ?? "");
 }
 
 function getDefault(locale: Locale, key: TemplateKey, vars: CopyVars): string {

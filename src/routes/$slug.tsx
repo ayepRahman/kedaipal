@@ -9,7 +9,8 @@ import { useCart } from "../hooks/useCart";
 interface StorefrontLoaderData {
 	storeName: string;
 	slug: string;
-	waPhone: string | undefined;
+	checkoutPhone: string | undefined;
+	locale: "en" | "ms";
 	description: string;
 	canonicalUrl: string;
 	ogImageUrl: string | undefined;
@@ -51,7 +52,8 @@ export const Route = createFileRoute("/$slug")({
 		return {
 			storeName: retailer.storeName,
 			slug: retailer.slug,
-			waPhone: retailer.waPhone,
+			checkoutPhone: retailer.checkoutPhone,
+			locale: retailer.locale ?? "en",
 			description: `Shop ${retailer.storeName} on Kedaipal — browse the catalog and place your order on WhatsApp.`,
 			canonicalUrl: `${SITE_URL}/${retailer.slug}`,
 			ogImageUrl,
@@ -59,13 +61,9 @@ export const Route = createFileRoute("/$slug")({
 	},
 	head: ({ loaderData }) => {
 		if (!loaderData) return {};
-		const {
-			storeName,
-			description,
-			canonicalUrl,
-			ogImageUrl,
-		} = loaderData;
+		const { storeName, description, canonicalUrl, ogImageUrl, checkoutPhone, locale } = loaderData;
 		const title = `${storeName} — Order on WhatsApp | Kedaipal`;
+		const ogLocale = locale === "ms" ? "ms_MY" : "en_MY";
 
 		const meta = [
 			{ title },
@@ -74,6 +72,7 @@ export const Route = createFileRoute("/$slug")({
 			// Open Graph
 			{ property: "og:type", content: "website" },
 			{ property: "og:site_name", content: "Kedaipal" },
+			{ property: "og:locale", content: ogLocale },
 			{ property: "og:title", content: title },
 			{ property: "og:description", content: description },
 			{ property: "og:url", content: canonicalUrl },
@@ -94,7 +93,9 @@ export const Route = createFileRoute("/$slug")({
 			"@type": "Store",
 			name: storeName,
 			url: canonicalUrl,
+			description,
 			...(ogImageUrl ? { image: ogImageUrl } : {}),
+			...(checkoutPhone ? { telephone: `+${checkoutPhone}` } : {}),
 		};
 
 		return {
@@ -175,7 +176,7 @@ function StorefrontRoute() {
 				cart={cart}
 				retailerId={retailer._id}
 				storeName={retailer.storeName}
-				waPhone={retailer.waPhone}
+				checkoutPhone={retailer.checkoutPhone}
 			/>
 		</div>
 	);

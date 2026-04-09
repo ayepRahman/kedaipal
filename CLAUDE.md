@@ -1,6 +1,6 @@
 # Kedaipal — WhatsApp-First Order Hub
 
-See full project context: `/Users/arifrahman/Documents/Claude/Projects/WhatsApp-First Order Hub for Outdoor Gear Retailers/PROJECT_CONTEXT.md`
+See full project context: [`./PROJECT_CONTEXT.md`](./PROJECT_CONTEXT.md)
 
 ## Quick Summary
 **Kedaipal** ("kedai" + "pal") — B2B SaaS order hub for small retailers. WhatsApp is the wedge; long-term vision is omnichannel (Shopee, Lazada, TikTok Shop, StoreHub). First vertical: outdoor gear.

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import {
 	ArrowRight,
 	BarChart3,
@@ -13,6 +13,7 @@ import {
 	Truck,
 } from "lucide-react";
 import { useState } from "react";
+import { z } from "zod";
 import { Button } from "../components/ui/button";
 import { cn } from "../lib/utils";
 import { m } from "../paraglide/messages";
@@ -96,7 +97,12 @@ const jsonLd = [
 	},
 ];
 
+const searchSchema = z.object({
+	step: z.coerce.number().int().min(1).max(4).optional(),
+});
+
 export const Route = createFileRoute("/")({
+	validateSearch: searchSchema,
 	head: () => ({
 		meta: [
 			{ title: SEO_TITLE },
@@ -383,29 +389,119 @@ function ProblemStrip() {
 
 /* --------------------------- How It Works --------------------------- */
 
+const HOW_STEP_DETAILS = [
+	{
+		heading: "Customer sends a WhatsApp message",
+		description:
+			"Your customer messages your WhatsApp Business number. No app download, no account creation — just a regular chat they already know how to use.",
+		preview: (
+			<div className="space-y-2 rounded-xl bg-[#ECE5DD] p-4">
+				<div className="max-w-[85%] self-start rounded-xl rounded-tl-sm bg-white px-3 py-2 text-xs text-slate-800 shadow-sm">
+					Hi! Do you have the 40L hiking pack in stock?
+				</div>
+				<div className="flex justify-end">
+					<div className="max-w-[85%] rounded-xl rounded-tr-sm bg-[#DCF8C6] px-3 py-2 text-xs text-slate-800 shadow-sm">
+						Yes! Browse our full catalog here 👇
+					</div>
+				</div>
+			</div>
+		),
+	},
+	{
+		heading: "They browse your storefront",
+		description:
+			"Kedaipal sends a CTA button linking to your branded storefront at kedaipal.com/your-shop. Customers browse products, view photos, and check inventory — all on mobile.",
+		preview: (
+			<div className="space-y-3 rounded-xl border border-border bg-card p-4">
+				<div className="flex items-center gap-3 border-b border-border pb-3">
+					<div className="flex size-9 items-center justify-center rounded-lg bg-accent/10">
+						<Store className="size-4 text-accent" />
+					</div>
+					<div>
+						<p className="text-sm font-semibold">Kedai Outdoor</p>
+						<p className="text-xs text-muted-foreground">kedaipal.com/kedai-outdoor</p>
+					</div>
+				</div>
+				<div className="grid grid-cols-2 gap-2">
+					{["40L Hiking Pack — RM 189", "Trekking Poles — RM 95"].map((item) => (
+						<div key={item} className="rounded-lg border border-border bg-muted/40 p-2">
+							<div className="mb-1.5 h-12 rounded bg-accent/10" />
+							<p className="text-[11px] font-medium leading-tight">{item}</p>
+						</div>
+					))}
+				</div>
+			</div>
+		),
+	},
+	{
+		heading: "Customer adds to cart & sends order",
+		description:
+			"Customers add items to cart directly in the browser. When they checkout, Kedaipal crafts a WhatsApp deep-link message that sends the full order back to your chat — no payment gateway needed for MVP.",
+		preview: (
+			<div className="space-y-2 rounded-xl bg-[#ECE5DD] p-4">
+				<div className="flex justify-end">
+					<div className="max-w-[90%] rounded-xl rounded-tr-sm bg-[#DCF8C6] px-3 py-2 shadow-sm">
+						<p className="text-[11px] font-bold text-slate-800">ORDER #KP-0147</p>
+						<div className="mt-1 space-y-0.5 text-[10px] text-slate-700">
+							<p>• 40L Hiking Pack × 1 — RM 189</p>
+							<p>• Total: RM 189</p>
+							<p>• Payment: Bank Transfer</p>
+						</div>
+					</div>
+				</div>
+				<div className="max-w-[85%] rounded-xl rounded-tl-sm bg-white px-3 py-2 text-xs text-slate-800 shadow-sm">
+					✅ Got it! Order confirmed. We'll pack it today.
+				</div>
+			</div>
+		),
+	},
+	{
+		heading: "Automated status updates keep them informed",
+		description:
+			"As you update the order status in your dashboard (Confirmed → Packed → Shipped → Delivered), Kedaipal automatically messages the customer on WhatsApp. Zero manual follow-up.",
+		preview: (
+			<div className="space-y-2 rounded-xl bg-[#ECE5DD] p-4">
+				{[
+					{ label: "Order Confirmed", emoji: "✅", time: "2:14 PM" },
+					{ label: "Packed & Ready", emoji: "📦", time: "4:30 PM" },
+					{ label: "Out for Delivery", emoji: "🚚", time: "9:05 AM" },
+				].map((msg) => (
+					<div key={msg.label} className="flex items-start gap-2">
+						<div className="max-w-[85%] rounded-xl rounded-tl-sm bg-white px-3 py-2 shadow-sm">
+							<p className="text-[11px] font-semibold text-slate-800">
+								{msg.emoji} {msg.label}
+							</p>
+							<p className="mt-0.5 text-[10px] text-slate-500">{msg.time}</p>
+						</div>
+					</div>
+				))}
+			</div>
+		),
+	},
+];
+
 function HowItWorks() {
+	const { step } = useSearch({ from: "/" });
+	const navigate = useNavigate({ from: "/" });
+	const activeStep = step ?? null;
+
 	const steps = [
-		{
-			icon: MessageCircle,
-			title: m.how_1_title(),
-			body: m.how_1_body(),
-		},
-		{
-			icon: Store,
-			title: m.how_2_title(),
-			body: m.how_2_body(),
-		},
-		{
-			icon: ShoppingCart,
-			title: m.how_3_title(),
-			body: m.how_3_body(),
-		},
-		{
-			icon: Bell,
-			title: m.how_4_title(),
-			body: m.how_4_body(),
-		},
+		{ icon: MessageCircle, title: m.how_1_title(), body: m.how_1_body() },
+		{ icon: Store, title: m.how_2_title(), body: m.how_2_body() },
+		{ icon: ShoppingCart, title: m.how_3_title(), body: m.how_3_body() },
+		{ icon: Bell, title: m.how_4_title(), body: m.how_4_body() },
 	];
+
+	function handleStepClick(stepNum: number) {
+		navigate({
+			search: (prev) => ({
+				...prev,
+				step: activeStep === stepNum ? undefined : stepNum,
+			}),
+			replace: true,
+		});
+	}
+
 	return (
 		<section
 			id="how"
@@ -427,23 +523,81 @@ function HowItWorks() {
 						{m.how_sub()}
 					</p>
 				</div>
-				<div className="mt-16 grid gap-8 md:grid-cols-4">
-					{steps.map((s, i) => (
-						<div key={s.title} className="relative">
-							<div className="flex size-12 items-center justify-center rounded-xl bg-accent/10 text-accent">
-								<s.icon className="size-6" />
-							</div>
-							<div className="mt-4 flex items-center gap-2">
-								<span className="text-xs font-bold text-muted-foreground">
-									0{i + 1}
-								</span>
-								<div className="h-px flex-1 bg-border" />
-							</div>
-							<h3 className="mt-3 text-lg font-semibold">{s.title}</h3>
-							<p className="mt-2 text-sm text-muted-foreground">{s.body}</p>
-						</div>
-					))}
+				<div className="mt-16 grid gap-4 md:grid-cols-4">
+					{steps.map((s, i) => {
+						const stepNum = i + 1;
+						const isActive = activeStep === stepNum;
+						return (
+							<button
+								key={s.title}
+								type="button"
+								onClick={() => handleStepClick(stepNum)}
+								aria-pressed={isActive}
+								aria-label={`Step ${stepNum}: ${s.title}`}
+								className={cn(
+									"relative rounded-2xl border p-5 text-left transition-all",
+									"hover:border-accent/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+									isActive
+										? "border-accent bg-accent/5 shadow-md"
+										: "border-border bg-card shadow-sm",
+								)}
+							>
+								<div
+									className={cn(
+										"flex size-12 items-center justify-center rounded-xl transition-colors",
+										isActive
+											? "bg-accent text-accent-foreground"
+											: "bg-accent/10 text-accent",
+									)}
+								>
+									<s.icon className="size-6" />
+								</div>
+								<div className="mt-4 flex items-center gap-2">
+									<span
+										className={cn(
+											"text-xs font-bold",
+											isActive ? "text-accent" : "text-muted-foreground",
+										)}
+									>
+										0{stepNum}
+									</span>
+									<div
+										className={cn(
+											"h-px flex-1",
+											isActive ? "bg-accent/40" : "bg-border",
+										)}
+									/>
+								</div>
+								<h3 className="mt-3 text-lg font-semibold">{s.title}</h3>
+								<p className="mt-2 text-sm text-muted-foreground">{s.body}</p>
+								{isActive && (
+									<div className="absolute bottom-3 right-3 size-2 rounded-full bg-accent" />
+								)}
+							</button>
+						);
+					})}
 				</div>
+
+				{activeStep !== null && HOW_STEP_DETAILS[activeStep - 1] && (
+					<div className="mt-6 overflow-hidden rounded-2xl border border-accent/30 bg-card shadow-md">
+						<div className="grid gap-0 md:grid-cols-2">
+							<div className="flex flex-col justify-center gap-4 p-8">
+								<span className="text-xs font-bold uppercase tracking-widest text-accent">
+									Step {activeStep} of 4
+								</span>
+								<h3 className="text-2xl font-bold tracking-tight">
+									{HOW_STEP_DETAILS[activeStep - 1].heading}
+								</h3>
+								<p className="text-base text-muted-foreground">
+									{HOW_STEP_DETAILS[activeStep - 1].description}
+								</p>
+							</div>
+							<div className="flex items-center justify-center border-t border-border/60 bg-muted/20 p-8 md:border-l md:border-t-0">
+								{HOW_STEP_DETAILS[activeStep - 1].preview}
+							</div>
+						</div>
+					</div>
+				)}
 			</div>
 		</section>
 	);

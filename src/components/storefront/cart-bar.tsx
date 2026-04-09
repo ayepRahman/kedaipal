@@ -10,10 +10,10 @@ interface CartBarProps {
 	cart: UseCart;
 	retailerId: Id<"retailers">;
 	storeName: string;
-	waPhone: string | undefined;
+	checkoutPhone: string | undefined;
 }
 
-export function CartBar({ cart, retailerId, storeName, waPhone }: CartBarProps) {
+export function CartBar({ cart, retailerId, storeName, checkoutPhone }: CartBarProps) {
 	const [checkoutOpen, setCheckoutOpen] = useState(false);
 	const empty = cart.itemCount === 0;
 
@@ -56,7 +56,7 @@ export function CartBar({ cart, retailerId, storeName, waPhone }: CartBarProps) 
 				cart={cart}
 				retailerId={retailerId}
 				storeName={storeName}
-				waPhone={waPhone}
+				checkoutPhone={checkoutPhone}
 			/>
 		</>
 	);

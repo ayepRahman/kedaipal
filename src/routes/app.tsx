@@ -16,6 +16,9 @@ import { api } from "../../convex/_generated/api";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/app")({
+	head: () => ({
+		meta: [{ name: "robots", content: "noindex, nofollow" }],
+	}),
 	component: AppLayout,
 });
 

@@ -106,6 +106,7 @@ export const getOrderWithRetailer = internalQuery({
 		status: Doc<"orders">["status"];
 		customerWaPhone: string | undefined;
 		storeName: string;
+		retailerWaPhone: string | undefined;
 		locale: Locale;
 		messageTemplates: MessageTemplates | undefined;
 	} | null> => {
@@ -118,6 +119,7 @@ export const getOrderWithRetailer = internalQuery({
 			status: order.status,
 			customerWaPhone: order.customer.waPhone,
 			storeName: retailer.storeName,
+			retailerWaPhone: retailer.waPhone,
 			locale: (retailer.locale as Locale | undefined) ?? "en",
 			messageTemplates: retailer.messageTemplates as
 				| MessageTemplates
@@ -134,6 +136,7 @@ export const getRetailerLocaleForOrder = internalQuery({
 	): Promise<{
 		locale: Locale;
 		storeName: string;
+		retailerWaPhone: string | undefined;
 		messageTemplates: MessageTemplates | undefined;
 		payment: ResolvedPayment;
 	} | null> => {
@@ -155,6 +158,7 @@ export const getRetailerLocaleForOrder = internalQuery({
 		return {
 			locale: (retailer.locale as Locale | undefined) ?? "en",
 			storeName: retailer.storeName,
+			retailerWaPhone: retailer.waPhone,
 			messageTemplates: retailer.messageTemplates as
 				| MessageTemplates
 				| undefined,
@@ -211,21 +215,29 @@ export const handleInbound = internalAction({
 		);
 		const locale = pickLocale(meta?.locale);
 		const storeName = meta?.storeName ?? "Kedaipal";
+		const contactPhone = meta?.retailerWaPhone;
 		const confirmBody = renderMessage(
 			meta?.messageTemplates,
 			locale,
 			"confirm",
-			{ shortId, storeName },
+			{ shortId, storeName, contactPhone },
 		);
 		const paymentBlock = renderPaymentInstructions(
 			locale,
 			meta?.payment.instructions,
 		);
 		const body = paymentBlock ? `${confirmBody}\n${paymentBlock}` : confirmBody;
+		const brandImageUrl = `${process.env.APP_URL ?? "https://kedaipal.com"}/logo-2.png`;
 		try {
-			await sendText(fromPhone, body);
+			await sendImage(fromPhone, brandImageUrl, body);
 		} catch (err) {
-			console.error("WA confirm send failed", err);
+			// Fall back to plain text if image send fails
+			console.error("WA confirm image send failed, falling back to text", err);
+			try {
+				await sendText(fromPhone, body);
+			} catch (textErr) {
+				console.error("WA confirm send failed", textErr);
+			}
 		}
 
 		// QR image, if configured, is sent as a follow-up image message so the
@@ -255,6 +267,7 @@ export const notifyStatusChange = internalAction({
 			status: Doc<"orders">["status"];
 			customerWaPhone: string | undefined;
 			storeName: string;
+			retailerWaPhone: string | undefined;
 			locale: Locale;
 			messageTemplates: MessageTemplates | undefined;
 		};
@@ -275,6 +288,7 @@ export const notifyStatusChange = internalAction({
 		const body = renderMessage(meta.messageTemplates, locale, meta.status, {
 			shortId: meta.shortId,
 			storeName: meta.storeName,
+			contactPhone: meta.retailerWaPhone,
 		});
 		try {
 			await sendText(meta.customerWaPhone, body);
