@@ -146,9 +146,11 @@ function StorefrontRoute() {
 	return (
 		<div className="mx-auto flex min-h-dvh w-full max-w-md flex-col pb-32">
 			<header className="flex flex-col gap-4 bg-gradient-to-b from-accent/10 to-background px-5 pb-6 pt-10">
-				<p className="text-xs font-semibold uppercase tracking-widest text-accent">
-					Kedaipal
-				</p>
+				<img
+					src="/logo-3.svg"
+					alt="Kedaipal"
+					className="h-5 w-auto"
+				/>
 				<div className="flex items-center gap-4">
 					{retailer.logoUrl ? (
 						<img
