@@ -70,9 +70,10 @@ function OrderDetailRoute() {
 	const { shortId } = Route.useParams();
 	const order = useQuery(api.orders.get, { shortId });
 	const updateStatus = useMutation(api.orders.updateStatus);
+	const setCarrierUrl = useMutation(api.orders.setCarrierTrackingUrl);
 	const [pending, setPending] = useState<Transition | null>(null);
-	const [carrierUrl, setCarrierUrl] = useState("");
-	const [showCarrierInput, setShowCarrierInput] = useState(false);
+	const [carrierInput, setCarrierInput] = useState<string | null>(null);
+	const [savingCarrier, setSavingCarrier] = useState(false);
 
 	if (order === undefined) {
 		return <OrderDetailSkeleton />;
@@ -82,28 +83,34 @@ function OrderDetailRoute() {
 	}
 
 	const transitions = NEXT_STATUS[order.status] ?? [];
+	const showCarrierSection = !["pending", "cancelled"].includes(order.status);
+	const editingCarrier = carrierInput !== null;
 
 	async function handleTransition(next: Transition) {
 		if (!order) return;
-		if (next === "shipped" && !showCarrierInput) {
-			setShowCarrierInput(true);
-			return;
-		}
 		setPending(next);
 		try {
-			await updateStatus({
-				orderId: order._id,
-				status: next,
-				...(next === "shipped" && carrierUrl.trim()
-					? { carrierTrackingUrl: carrierUrl.trim() }
-					: {}),
-			});
-			setShowCarrierInput(false);
-			setCarrierUrl("");
+			await updateStatus({ orderId: order._id, status: next });
 		} catch (err) {
 			toast.error(convexErrorMessage(err));
 		} finally {
 			setPending(null);
+		}
+	}
+
+	async function handleSaveCarrier() {
+		if (!order || carrierInput === null) return;
+		setSavingCarrier(true);
+		try {
+			await setCarrierUrl({
+				orderId: order._id,
+				carrierTrackingUrl: carrierInput || undefined,
+			});
+			setCarrierInput(null);
+		} catch (err) {
+			toast.error(convexErrorMessage(err));
+		} finally {
+			setSavingCarrier(false);
 		}
 	}
 
@@ -194,22 +201,70 @@ function OrderDetailRoute() {
 				</div>
 			</section>
 
-			{/* Carrier tracking link (if already set) */}
-			{order.carrierTrackingUrl ? (
+			{/* Carrier tracking */}
+			{showCarrierSection ? (
 				<section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
-					<p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-						Carrier Tracking
-					</p>
-					<a
-						href={order.carrierTrackingUrl}
-						target="_blank"
-						rel="noreferrer"
-						className="flex items-center gap-2 text-sm text-accent underline underline-offset-2"
-					>
-						<Truck className="size-4 shrink-0" />
-						<span className="truncate">{order.carrierTrackingUrl}</span>
-						<ExternalLink className="size-3 shrink-0" />
-					</a>
+					<div className="flex items-center justify-between">
+						<p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+							Carrier Tracking
+						</p>
+						{!editingCarrier ? (
+							<button
+								type="button"
+								onClick={() => setCarrierInput(order.carrierTrackingUrl ?? "")}
+								className="text-xs text-accent hover:underline"
+							>
+								{order.carrierTrackingUrl ? "Edit" : "Add link"}
+							</button>
+						) : null}
+					</div>
+
+					{editingCarrier ? (
+						<div className="flex flex-col gap-2">
+							<input
+								// eslint-disable-next-line jsx-a11y/no-autofocus
+								autoFocus
+								type="url"
+								value={carrierInput}
+								onChange={(e) => setCarrierInput(e.target.value)}
+								placeholder="https://www.spx.my/track?..."
+								className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+							/>
+							<p className="text-xs text-muted-foreground">
+								SPX, Lalamove, NinjaVan, J&amp;T, etc. Sent to the customer via WhatsApp.
+							</p>
+							<div className="flex gap-2">
+								<Button
+									onClick={handleSaveCarrier}
+									disabled={savingCarrier}
+									className="h-9 flex-1 text-sm"
+								>
+									{savingCarrier ? "Saving…" : "Save"}
+								</Button>
+								<Button
+									variant="secondary"
+									onClick={() => setCarrierInput(null)}
+									disabled={savingCarrier}
+									className="h-9 text-sm"
+								>
+									Cancel
+								</Button>
+							</div>
+						</div>
+					) : order.carrierTrackingUrl ? (
+						<a
+							href={order.carrierTrackingUrl}
+							target="_blank"
+							rel="noreferrer"
+							className="flex items-center gap-2 text-sm text-accent underline underline-offset-2"
+						>
+							<Truck className="size-4 shrink-0" />
+							<span className="truncate">{order.carrierTrackingUrl}</span>
+							<ExternalLink className="size-3 shrink-0" />
+						</a>
+					) : (
+						<p className="text-sm text-muted-foreground">No tracking link added yet.</p>
+					)}
 				</section>
 			) : null}
 
@@ -219,56 +274,19 @@ function OrderDetailRoute() {
 					<p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
 						Update Status
 					</p>
-					{showCarrierInput ? (
-						<div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-							<div className="flex items-center gap-2">
-								<Truck className="size-4 text-muted-foreground" />
-								<p className="text-sm font-medium">Carrier tracking link</p>
-								<span className="ml-auto text-xs text-muted-foreground">optional</span>
-							</div>
-							<input
-								type="url"
-								value={carrierUrl}
-								onChange={(e) => setCarrierUrl(e.target.value)}
-								placeholder="https://www.spx.my/track?..."
-								className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-							/>
-							<p className="text-xs text-muted-foreground">
-								SPX, Lalamove, NinjaVan, J&amp;T, etc. Sent to the customer via WhatsApp.
-							</p>
-							<div className="flex gap-2 pt-1">
-								<Button
-									onClick={() => handleTransition("shipped")}
-									disabled={pending !== null}
-									className="h-10 flex-1"
-								>
-									{pending === "shipped" ? "Updating…" : "Mark as Shipped"}
-								</Button>
-								<Button
-									variant="secondary"
-									onClick={() => { setShowCarrierInput(false); setCarrierUrl(""); }}
-									disabled={pending !== null}
-									className="h-10"
-								>
-									Cancel
-								</Button>
-							</div>
-						</div>
-					) : (
-						<div className="flex flex-col gap-2">
-							{transitions.map((t) => (
-								<Button
-									key={t}
-									onClick={() => handleTransition(t)}
-									disabled={pending !== null}
-									variant={t === "cancelled" ? "secondary" : "default"}
-									className="h-11 w-full"
-								>
-									{pending === t ? "Updating…" : TRANSITION_LABELS[t]}
-								</Button>
-							))}
-						</div>
-					)}
+					<div className="flex flex-col gap-2">
+						{transitions.map((t) => (
+							<Button
+								key={t}
+								onClick={() => handleTransition(t)}
+								disabled={pending !== null}
+								variant={t === "cancelled" ? "secondary" : "default"}
+								className="h-11 w-full"
+							>
+								{pending === t ? "Updating…" : TRANSITION_LABELS[t]}
+							</Button>
+						))}
+					</div>
 				</section>
 			) : null}
 		</div>

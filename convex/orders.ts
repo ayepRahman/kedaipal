@@ -304,3 +304,32 @@ export const updateStatus = mutation({
 		);
 	},
 });
+
+/**
+ * Set or clear the carrier tracking URL on an order.
+ * Retailer may receive the courier link after marking shipped, so this is
+ * intentionally not restricted by status.
+ */
+export const setCarrierTrackingUrl = mutation({
+	args: {
+		orderId: v.id("orders"),
+		carrierTrackingUrl: v.optional(v.string()),
+	},
+	handler: async (ctx, { orderId, carrierTrackingUrl }): Promise<void> => {
+		const identity = await ctx.auth.getUserIdentity();
+		if (!identity) throw new Error("Not authenticated");
+
+		const order = await ctx.db.get(orderId);
+		if (!order) throw new Error("Order not found");
+
+		const retailer = await ctx.db.get(order.retailerId);
+		if (!retailer) throw new Error("Retailer not found");
+		if (retailer.userId !== identity.subject) throw new Error("Forbidden");
+
+		const trimmed = carrierTrackingUrl?.trim() ?? "";
+		await ctx.db.patch(orderId, {
+			carrierTrackingUrl: trimmed.length > 0 ? trimmed : undefined,
+			updatedAt: Date.now(),
+		});
+	},
+});
