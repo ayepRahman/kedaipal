@@ -32,19 +32,6 @@ jobs:
       - name: Test
         run: pnpm test
 
-      # Sync server-side env vars from GitHub Secrets → Convex prod project.
-      # GitHub Secrets is the single source of truth — no need to set these
-      # manually in the Convex dashboard.
-      - name: Sync Convex environment variables
-        run: |
-          npx convex env set WHATSAPP_ACCESS_TOKEN "${{ secrets.WHATSAPP_ACCESS_TOKEN }}"
-          npx convex env set WHATSAPP_PHONE_NUMBER_ID "${{ vars.WHATSAPP_PHONE_NUMBER_ID }}"
-          npx convex env set WHATSAPP_VERIFY_TOKEN "${{ secrets.WHATSAPP_VERIFY_TOKEN }}"
-          npx convex env set CLERK_JWT_ISSUER_DOMAIN "${{ secrets.CLERK_JWT_ISSUER_DOMAIN }}"
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-
-      # Deploy Convex backend after env vars are synced.
       - name: Deploy Convex (backend)
         run: npx convex deploy --prod
         env:
