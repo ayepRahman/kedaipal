@@ -1,15 +1,18 @@
 name: Deploy to Production
 
+env:
+  CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+
 on:
   push:
     branches:
       - main
 
 jobs:
-  deploy:
-    name: Typecheck, Test, Deploy
+  lint-and-check:
+    name: Typecheck and Test
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -17,7 +20,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: lts/*
           cache: pnpm
 
       - name: Install dependencies
@@ -32,14 +35,44 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Deploy Convex (backend)
-        run: npx convex deploy --prod
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+  convex-deploy:
+    name: Deploy Convex (backend)
+    runs-on: ubuntu-latest
+    needs: lint-and-check
+    steps:
+      - uses: actions/checkout@v4
 
-      # Build the TanStack Start / Cloudflare Workers bundle.
-      # VITE_* vars are inlined at build time by Vite.
-      - name: Build frontend
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy Convex
+        run: pnpm dlx convex@latest deploy --yes
+
+  deploy:
+    name: Deploy to Cloudflare Workers
+    runs-on: ubuntu-latest
+    needs: convex-deploy
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
         run: pnpm build
         env:
           VITE_CONVEX_URL: ${{ vars.VITE_CONVEX_URL }}
