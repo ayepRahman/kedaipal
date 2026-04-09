@@ -4,7 +4,8 @@ import { mutation, type MutationCtx, query, type QueryCtx } from "./_generated/s
 import { rateLimiter } from "./lib/rateLimiter";
 
 const MAX_IMAGES_PER_PRODUCT = 5;
-const MAX_BULK_IMPORT_BATCH = 100;
+const MAX_BULK_IMPORT_BATCH = 50;
+const MAX_PRODUCTS_PER_RETAILER = 50; // beta cap
 
 async function requireUserId(
 	ctx: QueryCtx | MutationCtx,
@@ -97,6 +98,16 @@ export const create = mutation({
 		const userId = await requireUserId(ctx);
 		await rateLimiter.limit(ctx, "productWrite", { key: userId, throws: true });
 		await requireRetailerOwnership(ctx, args.retailerId);
+
+		const existingCount = await ctx.db
+			.query("products")
+			.withIndex("by_retailer", (q) => q.eq("retailerId", args.retailerId))
+			.collect()
+			.then((r) => r.length);
+		if (existingCount >= MAX_PRODUCTS_PER_RETAILER)
+			throw new ConvexError(
+				`Beta limit: maximum ${MAX_PRODUCTS_PER_RETAILER} products per retailer`,
+			);
 
 		if (args.price < 0) throw new ConvexError("Price must be non-negative");
 		if (!Number.isInteger(args.stock) || args.stock < 0)
@@ -200,6 +211,16 @@ export const bulkCreate = mutation({
 		if (args.items.length > MAX_BULK_IMPORT_BATCH)
 			throw new ConvexError(
 				`Maximum ${MAX_BULK_IMPORT_BATCH} products per batch (received ${args.items.length})`,
+			);
+
+		const existingCount = await ctx.db
+			.query("products")
+			.withIndex("by_retailer", (q) => q.eq("retailerId", args.retailerId))
+			.collect()
+			.then((r) => r.length);
+		if (existingCount + args.items.length > MAX_PRODUCTS_PER_RETAILER)
+			throw new ConvexError(
+				`Beta limit: would exceed ${MAX_PRODUCTS_PER_RETAILER} products per retailer (currently ${existingCount})`,
 			);
 
 		// Pre-validate the entire batch BEFORE any insert so a bad row aborts

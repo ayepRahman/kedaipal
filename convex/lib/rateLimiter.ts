@@ -19,15 +19,15 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
 	},
 	productWrite: {
 		kind: "fixed window",
-		rate: 60,
+		rate: 20, // beta: tightened from 60
 		period: MINUTE,
 	},
 	// Bulk import is heavier per call (writes many products in one transaction)
 	// but called in small bursts during a single import session.
 	productBulkImport: {
 		kind: "token bucket",
-		rate: 20,
+		rate: 5, // beta: tightened from 20
 		period: MINUTE,
-		capacity: 5,
+		capacity: 2,
 	},
 });
