@@ -555,7 +555,7 @@ function PaymentInstructionsForm({
 				<textarea
 					value={draft.note}
 					onChange={(e) => setField("note", e.target.value)}
-					placeholder="Send your payment receipt back here after transfer."
+					placeholder="Send your payment receipt to our WhatsApp number after transfer."
 					rows={3}
 					maxLength={500}
 					className="rounded-xl border border-input bg-background px-4 py-2 text-base outline-none focus:border-ring focus:ring-2 focus:ring-ring/50"
