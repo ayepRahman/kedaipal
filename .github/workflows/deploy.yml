@@ -17,11 +17,14 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate paraglide files
+        run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/paraglide
 
       - name: Typecheck
         run: pnpm typecheck
