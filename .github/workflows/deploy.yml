@@ -1,8 +1,5 @@
 name: Deploy to Production
 
-env:
-  CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-
 on:
   push:
     branches:
@@ -54,13 +51,20 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Sync Convex environment variables
-        run: |
-          npx convex env set CLERK_JWT_ISSUER_DOMAIN "${{ secrets.CLERK_JWT_ISSUER_DOMAIN }}"
-          npx convex env set WHATSAPP_ACCESS_TOKEN "${{ secrets.WHATSAPP_ACCESS_TOKEN }}"
-          npx convex env set WHATSAPP_PHONE_NUMBER_ID "${{ vars.WHATSAPP_PHONE_NUMBER_ID }}"
-          npx convex env set WHATSAPP_VERIFY_TOKEN "${{ secrets.WHATSAPP_VERIFY_TOKEN }}"
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          CLERK_JWT_ISSUER_DOMAIN: ${{ secrets.CLERK_JWT_ISSUER_DOMAIN }}
+          WHATSAPP_ACCESS_TOKEN: ${{ secrets.WHATSAPP_ACCESS_TOKEN }}
+          WHATSAPP_PHONE_NUMBER_ID: ${{ vars.WHATSAPP_PHONE_NUMBER_ID }}
+          WHATSAPP_VERIFY_TOKEN: ${{ secrets.WHATSAPP_VERIFY_TOKEN }}
+        run: |
+          CONVEX_ENV_VARS=("CLERK_JWT_ISSUER_DOMAIN" "WHATSAPP_ACCESS_TOKEN" "WHATSAPP_PHONE_NUMBER_ID" "WHATSAPP_VERIFY_TOKEN")
+          for var_name in "${CONVEX_ENV_VARS[@]}"; do
+            var_value="${!var_name}"
+            if [ -n "$var_value" ]; then
+              npx convex env set "$var_name" "$var_value" || echo "Warning: Failed to set $var_name"
+            fi
+          done
 
       - name: Deploy Convex
         run: npx convex deploy
