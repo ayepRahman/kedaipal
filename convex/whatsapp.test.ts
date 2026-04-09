@@ -103,12 +103,14 @@ describe("whatsapp inbound", () => {
 		expect(fetchMock.calls).toHaveLength(1);
 		expect(fetchMock.calls[0].url).toContain("test-phone-id/messages");
 		const body = fetchMock.calls[0].body as {
-			text: { body: string };
+			type: string;
+			image: { caption: string };
 			to: string;
 		};
 		expect(body.to).toBe("60123456789");
-		expect(body.text.body).toContain(shortId);
-		expect(body.text.body).toContain("confirmed");
+		expect(body.type).toBe("image");
+		expect(body.image.caption).toContain(shortId);
+		expect(body.image.caption).toContain("confirmed");
 		fetchMock.restore();
 	});
 
@@ -123,9 +125,10 @@ describe("whatsapp inbound", () => {
 			text: `Pesanan saya ${shortId}`,
 		});
 
-		const body = fetchMock.calls[0].body as { text: { body: string } };
-		expect(body.text.body).toContain("Pesanan");
-		expect(body.text.body).toContain("disahkan");
+		const body = fetchMock.calls[0].body as { type: string; image: { caption: string } };
+		expect(body.type).toBe("image");
+		expect(body.image.caption).toContain("Pesanan");
+		expect(body.image.caption).toContain("disahkan");
 		fetchMock.restore();
 	});
 
@@ -191,17 +194,18 @@ describe("whatsapp inbound", () => {
 			text: shortId,
 		});
 
-		// Only one send (text) — no QR configured.
+		// Only one send (image) — no QR configured.
 		expect(fetchMock.calls).toHaveLength(1);
-		const body = (fetchMock.calls[0].body as { text: { body: string } }).text
-			.body;
-		expect(body).toContain(shortId);
-		expect(body).toContain("confirmed");
-		expect(body).toContain("💳 Payment details");
-		expect(body).toContain("Bank: Maybank");
-		expect(body).toContain("Name: Acme Outdoor");
-		expect(body).toContain("Account: 5123-4567");
-		expect(body).toContain("Send receipt after transfer.");
+		const body = (fetchMock.calls[0].body as { type: string; image: { caption: string } });
+		expect(body.type).toBe("image");
+		const caption = body.image.caption;
+		expect(caption).toContain(shortId);
+		expect(caption).toContain("confirmed");
+		expect(caption).toContain("💳 Payment details");
+		expect(caption).toContain("Bank: Maybank");
+		expect(caption).toContain("Name: Acme Outdoor");
+		expect(caption).toContain("Account: 5123-4567");
+		expect(caption).toContain("Send receipt after transfer.");
 		fetchMock.restore();
 	});
 
@@ -220,12 +224,13 @@ describe("whatsapp inbound", () => {
 			text: shortId,
 		});
 
-		const body = (fetchMock.calls[0].body as { text: { body: string } }).text
-			.body;
-		expect(body).toContain("disahkan");
-		expect(body).toContain("💳 Maklumat pembayaran");
-		expect(body).toContain("Bank: CIMB");
-		expect(body).toContain("Akaun: 9988");
+		const body = (fetchMock.calls[0].body as { type: string; image: { caption: string } });
+		expect(body.type).toBe("image");
+		const caption = body.image.caption;
+		expect(caption).toContain("disahkan");
+		expect(caption).toContain("💳 Maklumat pembayaran");
+		expect(caption).toContain("Bank: CIMB");
+		expect(caption).toContain("Akaun: 9988");
 		fetchMock.restore();
 	});
 
@@ -256,22 +261,22 @@ describe("whatsapp inbound", () => {
 			text: shortId,
 		});
 
-		// Two sends: text confirm + image
+		// Two sends: image confirm (logo + caption) + image QR
 		expect(fetchMock.calls).toHaveLength(2);
-		const textBody = fetchMock.calls[0].body as {
+		const confirmBody = fetchMock.calls[0].body as {
 			type: string;
-			text: { body: string };
+			image: { link: string; caption: string };
 		};
-		expect(textBody.type).toBe("text");
-		expect(textBody.text.body).toContain("Scan to pay via DuitNow.");
+		expect(confirmBody.type).toBe("image");
+		expect(confirmBody.image.caption).toContain("Scan to pay via DuitNow.");
 
-		const imageBody = fetchMock.calls[1].body as {
+		const qrBody = fetchMock.calls[1].body as {
 			type: string;
 			image: { link: string; caption?: string };
 		};
-		expect(imageBody.type).toBe("image");
-		expect(imageBody.image.link).toMatch(/^https?:\/\//);
-		expect(imageBody.image.caption).toBe("Scan to pay");
+		expect(qrBody.type).toBe("image");
+		expect(qrBody.image.link).toMatch(/^https?:\/\//);
+		expect(qrBody.image.caption).toBe("Scan to pay");
 		fetchMock.restore();
 	});
 
@@ -287,10 +292,10 @@ describe("whatsapp inbound", () => {
 		});
 
 		expect(fetchMock.calls).toHaveLength(1);
-		const body = (fetchMock.calls[0].body as { text: { body: string } }).text
-			.body;
-		expect(body).not.toContain("💳");
-		expect(body).not.toContain("Payment details");
+		const body = (fetchMock.calls[0].body as { type: string; image: { caption: string } });
+		expect(body.type).toBe("image");
+		expect(body.image.caption).not.toContain("💳");
+		expect(body.image.caption).not.toContain("Payment details");
 		fetchMock.restore();
 	});
 
@@ -380,9 +385,9 @@ describe("whatsapp outbound on status change", () => {
 			fromPhone: "60123456789",
 			text: shortId,
 		});
-		const confirmBody = (fetchMock.calls[0].body as { text: { body: string } })
-			.text.body;
-		expect(confirmBody).toBe(`Yo ${shortId}! Thanks from Test Outdoor 🙌`);
+		const confirmBody = (fetchMock.calls[0].body as { type: string; image: { caption: string } });
+		expect(confirmBody.type).toBe("image");
+		expect(confirmBody.image.caption).toBe(`Yo ${shortId}! Thanks from Test Outdoor 🙌`);
 		fetchMock.calls.length = 0;
 
 		// Packed via direct status patch — should use custom packed template
