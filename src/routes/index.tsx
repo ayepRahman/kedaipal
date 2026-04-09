@@ -18,7 +18,109 @@ import { cn } from "../lib/utils";
 import { m } from "../paraglide/messages";
 import { getLocale, setLocale } from "../paraglide/runtime";
 
-export const Route = createFileRoute("/")({ component: Landing });
+const SEO_TITLE = "Kedaipal — WhatsApp Order Hub for Small Retailers in Malaysia";
+const SEO_DESC =
+	"Turn WhatsApp into your order hub. Kedaipal lets small retailers launch a storefront, manage orders, and track inventory — free during beta, no code needed.";
+const SITE_URL = "https://kedaipal.com";
+const OG_IMAGE = `${SITE_URL}/android-chrome-512x512.png`;
+
+const jsonLd = [
+	{
+		"@context": "https://schema.org",
+		"@type": "Organization",
+		name: "Kedaipal",
+		url: SITE_URL,
+		logo: OG_IMAGE,
+		description:
+			"B2B SaaS order hub for small retailers. Start on WhatsApp, grow to Shopee, Lazada, and TikTok Shop — all from one dashboard.",
+	},
+	{
+		"@context": "https://schema.org",
+		"@type": "SoftwareApplication",
+		name: "Kedaipal",
+		applicationCategory: "BusinessApplication",
+		operatingSystem: "Web",
+		description: SEO_DESC,
+		offers: {
+			"@type": "Offer",
+			price: "0",
+			priceCurrency: "MYR",
+			description: "Free during beta",
+		},
+	},
+	{
+		"@context": "https://schema.org",
+		"@type": "FAQPage",
+		mainEntity: [
+			{
+				"@type": "Question",
+				name: "Do I need my own WhatsApp Business number?",
+				acceptedAnswer: {
+					"@type": "Answer",
+					text: "During the beta, you can share a test number we provide. When you're ready for production, you'll connect your own WhatsApp Business number through the Meta Cloud API.",
+				},
+			},
+			{
+				"@type": "Question",
+				name: "Do I need a registered company?",
+				acceptedAnswer: {
+					"@type": "Answer",
+					text: "Not for the beta. For production WhatsApp Business API access, Meta eventually requires business verification, but we'll walk you through that when the time comes.",
+				},
+			},
+			{
+				"@type": "Question",
+				name: "How are payments handled?",
+				acceptedAnswer: {
+					"@type": "Answer",
+					text: "For MVP, Kedaipal supports offline payment methods: cash on delivery, bank transfer, and e-wallet screenshots. Online payment integration is on the roadmap.",
+				},
+			},
+			{
+				"@type": "Question",
+				name: "Is Kedaipal WhatsApp-only?",
+				acceptedAnswer: {
+					"@type": "Answer",
+					text: "No. WhatsApp is where most beta users start because it's the channel their customers already use every day. Shopee, Lazada, and TikTok Shop connectors are actively rolling out during beta.",
+				},
+			},
+			{
+				"@type": "Question",
+				name: "Will pricing stay free forever?",
+				acceptedAnswer: {
+					"@type": "Answer",
+					text: "No — Kedaipal will move to paid tiers after beta. Beta users get locked-in founder pricing as a thank-you.",
+				},
+			},
+		],
+	},
+];
+
+export const Route = createFileRoute("/")({
+	head: () => ({
+		meta: [
+			{ title: SEO_TITLE },
+			{ name: "description", content: SEO_DESC },
+			{ property: "og:type", content: "website" },
+			{ property: "og:url", content: SITE_URL },
+			{ property: "og:title", content: SEO_TITLE },
+			{ property: "og:description", content: SEO_DESC },
+			{ property: "og:image", content: OG_IMAGE },
+			{ name: "twitter:card", content: "summary_large_image" },
+			{ name: "twitter:title", content: SEO_TITLE },
+			{ name: "twitter:description", content: SEO_DESC },
+			{ name: "twitter:image", content: OG_IMAGE },
+		],
+		links: [{ rel: "canonical", href: SITE_URL }],
+		scripts: [
+			{
+				type: "application/ld+json",
+				children: JSON.stringify(jsonLd),
+			},
+		],
+	}),
+	component: Landing,
+});
 
 function Landing() {
 	return (
@@ -27,8 +129,8 @@ function Landing() {
 			<Hero />
 			<ProblemStrip />
 			<HowItWorks />
+			<SetupStrip />
 			<FeatureGrid />
-	
 			<PricingTeaser />
 			<Faq />
 			<FinalCta />
@@ -350,6 +452,63 @@ function HowItWorks() {
 	);
 }
 
+/* --------------------------- Setup Strip --------------------------- */
+
+function SetupStrip() {
+	const steps = [
+		{ title: m.setup_step_1_title(), body: m.setup_step_1_body() },
+		{ title: m.setup_step_2_title(), body: m.setup_step_2_body() },
+		{ title: m.setup_step_3_title(), body: m.setup_step_3_body() },
+	];
+	return (
+		<section
+			aria-labelledby="setup-heading"
+			className="border-b border-border/60"
+		>
+			<div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
+				<div className="mx-auto max-w-2xl text-center">
+					<p className="text-xs font-semibold uppercase tracking-widest text-accent">
+						{m.setup_label()}
+					</p>
+					<h2
+						id="setup-heading"
+						className="mt-3 text-3xl font-bold tracking-tight md:text-5xl"
+					>
+						{m.setup_heading()}
+					</h2>
+					<p className="mt-4 text-base text-muted-foreground md:text-lg">
+						{m.setup_sub()}
+					</p>
+				</div>
+				<div className="relative mt-14 grid gap-8 md:grid-cols-3">
+					{steps.map((s, i) => (
+						<div key={s.title} className="flex flex-col gap-4">
+							<div className="flex items-center gap-3">
+								<div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-bold text-accent-foreground">
+									{i + 1}
+								</div>
+								{i < steps.length - 1 && (
+									<div className="hidden h-px flex-1 bg-accent/20 md:block" />
+								)}
+							</div>
+							<h3 className="text-lg font-semibold">{s.title}</h3>
+							<p className="text-sm text-muted-foreground">{s.body}</p>
+						</div>
+					))}
+				</div>
+				<div className="mt-12 flex justify-center">
+					<Button asChild size="lg" className="h-12 px-8 text-base">
+						<Link to="/sign-up/$" params={{ _splat: "" }}>
+							{m.setup_cta()}
+							<ArrowRight />
+						</Link>
+					</Button>
+				</div>
+			</div>
+		</section>
+	);
+}
+
 /* --------------------------- Feature Grid --------------------------- */
 
 function FeatureGrid() {
@@ -406,72 +565,6 @@ function FeatureGrid() {
 							<h3 className="mt-4 text-lg font-semibold">{f.title}</h3>
 							<p className="mt-2 text-sm text-muted-foreground">{f.body}</p>
 						</div>
-					))}
-				</div>
-			</div>
-		</section>
-	);
-}
-
-/* --------------------------- Social Proof --------------------------- */
-
-function SocialProof() {
-	const testimonials = [
-		{
-			quote: m.testimonial_1_quote(),
-			name: "Hafiz",
-			role: m.testimonial_1_role(),
-		},
-		{
-			quote: m.testimonial_2_quote(),
-			name: "Mei Ling",
-			role: m.testimonial_2_role(),
-		},
-		{
-			quote: m.testimonial_3_quote(),
-			name: "Ravi",
-			role: m.testimonial_3_role(),
-		},
-	];
-	return (
-		<section
-			aria-labelledby="proof-heading"
-			className="border-b border-border/60"
-		>
-			<div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
-				<div className="mx-auto max-w-2xl text-center">
-					<p className="text-xs font-semibold uppercase tracking-widest text-accent">
-						{m.proof_label()}
-					</p>
-					<h2
-						id="proof-heading"
-						className="mt-3 text-3xl font-bold tracking-tight md:text-5xl"
-					>
-						{m.proof_heading()}
-					</h2>
-					<p className="mt-3 text-xs text-muted-foreground">
-						{m.proof_disclaimer()}
-					</p>
-				</div>
-				<div className="mt-14 grid gap-6 md:grid-cols-3">
-					{testimonials.map((t) => (
-						<figure
-							key={t.name}
-							className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm"
-						>
-							<blockquote className="text-base leading-relaxed text-foreground">
-								"{t.quote}"
-							</blockquote>
-							<figcaption className="mt-auto flex items-center gap-3 border-t border-border pt-4">
-								<div className="flex size-10 items-center justify-center rounded-full bg-accent/20 text-sm font-bold text-accent">
-									{t.name[0]}
-								</div>
-								<div>
-									<p className="text-sm font-semibold">{t.name}</p>
-									<p className="text-xs text-muted-foreground">{t.role}</p>
-								</div>
-							</figcaption>
-						</figure>
 					))}
 				</div>
 			</div>

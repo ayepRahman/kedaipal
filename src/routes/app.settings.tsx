@@ -164,6 +164,30 @@ function SettingsRoute() {
 
 			{activeTab === "whatsapp" ? (
 				<div className="flex flex-col gap-6 pt-2">
+					<div className="rounded-xl border border-border bg-muted/40 px-4 py-3 flex flex-col gap-2">
+						<p className="text-sm font-medium">How your WhatsApp number works</p>
+						<ul className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+							<li>
+								<span className="font-medium text-foreground">Checkout link</span>
+								{" "}— shoppers are sent to your number via WhatsApp when they tap "Checkout". Any WhatsApp number works here.
+							</li>
+							<li>
+								<span className="font-medium text-foreground">Automated confirmations</span>
+								{" "}— the bot that replies "✅ Order ORD-XXXX confirmed" currently sends from our shared beta number. Contact us when you're ready to connect your own.
+							</li>
+						</ul>
+					</div>
+
+					<div className="rounded-xl border border-border bg-muted/40 px-4 py-3 flex flex-col gap-2">
+						<p className="text-sm font-medium">Ready to go live with your own number?</p>
+						<ol className="flex flex-col gap-1.5 text-sm text-muted-foreground list-decimal list-inside">
+							<li>Register your number in Meta for Developers → your app → WhatsApp → Add phone number</li>
+							<li>Complete Meta business verification (takes 1–3 days)</li>
+							<li>Generate a permanent System User access token in Meta Business Manager</li>
+							<li>Send us your Phone Number ID and access token — we'll update the server config</li>
+						</ol>
+					</div>
+
 					<Card>
 						<WaPhoneForm
 							current={retailer.waPhone ?? ""}

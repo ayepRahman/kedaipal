@@ -1,7 +1,20 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kedaipal",
+  "account_id": "8eb311132741dadfcd1fef79b8b7c1df",
   "compatibility_date": "2025-09-02",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry"
+  "main": "@tanstack/react-start/server-entry",
+  "assets": {
+    "directory": "./dist/client"
+  },
+  "routes": [
+    {
+      "pattern": "kedaipal.com/*",
+      "zone_name": "kedaipal.com"
+    }
+  ],
+  "vars": {
+    "SITE_URL": "https://kedaipal.com"
+  }
 }

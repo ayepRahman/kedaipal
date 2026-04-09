@@ -19,7 +19,8 @@
     "format": "biome format",
     "lint": "biome lint",
     "check": "biome check",
-    "deploy": "pnpm run build && wrangler deploy"
+    "deploy": "pnpm run build && wrangler deploy",
+    "seed": "npx convex run seed:run"
   },
   "dependencies": {
     "@clerk/tanstack-react-start": "^1.0.11",
