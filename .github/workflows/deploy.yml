@@ -2,7 +2,6 @@ name: Deploy to Production
 
 env:
   CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-  CONVEX_DEPLOYMENT: prod:groovy-cuttlefish-429
 
 on:
   push:
