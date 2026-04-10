@@ -17,11 +17,69 @@ import { useState } from "react";
 import { api } from "../../convex/_generated/api";
 import { StorefrontQrDialog } from "../components/dashboard/storefront-qr-dialog";
 import { Button } from "../components/ui/button";
+import { Skeleton } from "../components/ui/skeleton";
 import { formatPrice } from "../lib/format";
 
 export const Route = createFileRoute("/app/")({
 	component: DashboardHome,
 });
+
+function DashboardSkeleton() {
+	return (
+		<div className="flex flex-col gap-6">
+			{/* Hero section */}
+			<section className="rounded-3xl border border-border bg-card p-6">
+				<div className="flex flex-col gap-3">
+					<Skeleton className="h-3 w-24" />
+					<div className="flex items-center gap-3">
+						<Skeleton className="h-14 w-14 rounded-2xl" />
+						<Skeleton className="h-7 w-40" />
+					</div>
+					<Skeleton className="h-4 w-56" />
+					<div className="mt-2 flex gap-2">
+						<Skeleton className="h-11 flex-1 rounded-md" />
+						<Skeleton className="h-11 flex-1 rounded-md" />
+						<Skeleton className="h-11 w-11 rounded-md" />
+					</div>
+				</div>
+			</section>
+
+			{/* Stats grid */}
+			<section className="grid grid-cols-2 gap-3">
+				{Array.from({ length: 4 }).map((_, i) => (
+					<div key={i} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+						<Skeleton className="h-8 w-8 rounded-lg" />
+						<div className="flex flex-col gap-1.5">
+							<Skeleton className="h-7 w-10" />
+							<Skeleton className="h-3 w-16" />
+							<Skeleton className="h-3 w-20" />
+						</div>
+					</div>
+				))}
+			</section>
+
+			{/* Recent orders */}
+			<section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+				<div className="flex items-center justify-between">
+					<Skeleton className="h-4 w-24" />
+					<Skeleton className="h-3 w-16" />
+				</div>
+				{Array.from({ length: 3 }).map((_, i) => (
+					<div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3">
+						<div className="flex flex-col gap-1.5">
+							<Skeleton className="h-4 w-20" />
+							<Skeleton className="h-3 w-32" />
+						</div>
+						<div className="flex flex-col items-end gap-1.5">
+							<Skeleton className="h-4 w-16" />
+							<Skeleton className="h-4 w-14 rounded-full" />
+						</div>
+					</div>
+				))}
+			</section>
+		</div>
+	);
+}
 
 function DashboardHome() {
 	const retailer = useQuery(api.retailers.getMyRetailer);
@@ -42,7 +100,7 @@ function DashboardHome() {
 	const [copied, setCopied] = useState(false);
 	const [qrOpen, setQrOpen] = useState(false);
 
-	if (!retailer) return null;
+	if (!retailer) return <DashboardSkeleton />;
 
 	const storefrontUrl = `${typeof window !== "undefined" ? window.location.origin : "https://kedaipal.com"}/${retailer.slug}`;
 

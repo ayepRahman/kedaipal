@@ -3,6 +3,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { CartBar } from "../components/storefront/cart-bar";
 import { ProductGrid } from "../components/storefront/product-grid";
+import { Skeleton } from "../components/ui/skeleton";
 import { getConvexHttpClient, SITE_URL } from "../lib/convex-server";
 import { useCart } from "../hooks/useCart";
 
@@ -125,6 +126,34 @@ function StoreNotFound() {
 	);
 }
 
+function StorefrontSkeleton() {
+	return (
+		<div className="mx-auto flex min-h-dvh w-full max-w-md flex-col pb-32">
+			<header className="flex flex-col gap-4 bg-gradient-to-b from-accent/10 to-background px-5 pb-6 pt-10">
+				<Skeleton className="h-5 w-24" />
+				<div className="flex items-center gap-4">
+					<Skeleton className="h-16 w-16 shrink-0 rounded-2xl" />
+					<div className="flex flex-col gap-2">
+						<Skeleton className="h-7 w-40" />
+						<Skeleton className="h-4 w-48" />
+					</div>
+				</div>
+			</header>
+			<section className="mt-4 flex flex-col gap-4 px-5">
+				<div className="grid grid-cols-2 gap-3">
+					{Array.from({ length: 4 }).map((_, i) => (
+						<div key={i} className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-3">
+							<Skeleton className="aspect-square w-full rounded-xl" />
+							<Skeleton className="h-4 w-3/4" />
+							<Skeleton className="h-4 w-1/2" />
+						</div>
+					))}
+				</div>
+			</section>
+		</div>
+	);
+}
+
 function StorefrontRoute() {
 	const { slug } = Route.useParams();
 	// Live query keeps the catalog reactive after the SSR'd loader response.
@@ -134,11 +163,7 @@ function StorefrontRoute() {
 	);
 
 	if (result === undefined || result.status !== "ok") {
-		return (
-			<main className="mx-auto flex min-h-dvh w-full max-w-md items-center justify-center px-5">
-				<p className="text-sm text-muted-foreground">Loading…</p>
-			</main>
-		);
+		return <StorefrontSkeleton />;
 	}
 
 	const retailer = result.retailer;

@@ -14,6 +14,7 @@ import {
 } from "../../convex/lib/whatsappCopy";
 import { useAppForm } from "../components/forms/form";
 import { Button } from "../components/ui/button";
+import { Skeleton } from "../components/ui/skeleton";
 import { useSlugAvailability } from "../hooks/useSlugAvailability";
 import { settingsWaPhoneFormSchema } from "../lib/schemas";
 
@@ -44,6 +45,38 @@ export const Route = createFileRoute("/app/settings")({
 	component: SettingsRoute,
 });
 
+function SettingsSkeleton() {
+	return (
+		<div className="flex flex-col gap-6">
+			<section className="flex flex-col gap-2">
+				<Skeleton className="h-7 w-24" />
+				<Skeleton className="h-4 w-48" />
+			</section>
+
+			{/* Tab bar */}
+			<div className="flex gap-1 border-b border-input">
+				{Array.from({ length: 3 }).map((_, i) => (
+					<Skeleton key={i} className="h-11 w-20" />
+				))}
+			</div>
+
+			{/* Form cards */}
+			<div className="flex flex-col gap-6 pt-2">
+				{Array.from({ length: 2 }).map((_, i) => (
+					<section key={i} className="flex flex-col gap-4 rounded-2xl border border-input bg-background p-4">
+						<div className="flex flex-col gap-1">
+							<Skeleton className="h-4 w-28" />
+							<Skeleton className="h-3 w-full" />
+						</div>
+						<Skeleton className="h-11 w-full rounded-xl" />
+						<Skeleton className="h-12 w-full rounded-md" />
+					</section>
+				))}
+			</div>
+		</div>
+	);
+}
+
 function SettingsRoute() {
 	const retailer = useQuery(api.retailers.getMyRetailer);
 	const renameSlug = useMutation(api.retailers.renameSlug);
@@ -55,7 +88,7 @@ function SettingsRoute() {
 
 	const availability = useSlugAvailability(newSlug);
 
-	if (!retailer) return null;
+	if (!retailer) return <SettingsSkeleton />;
 
 	async function onSubmit(e: FormEvent) {
 		e.preventDefault();

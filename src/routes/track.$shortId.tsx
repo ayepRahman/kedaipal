@@ -3,6 +3,7 @@ import { useQuery } from "convex/react";
 import { CheckCircle, Clock, ExternalLink, Package, Store, Truck, XCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { api } from "../../convex/_generated/api";
+import { Skeleton } from "../components/ui/skeleton";
 import { getConvexHttpClient, SITE_URL } from "../lib/convex-server";
 import { formatPrice } from "../lib/format";
 
@@ -86,16 +87,61 @@ function OrderNotFound() {
 	);
 }
 
+function TrackingSkeleton() {
+	return (
+		<main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-12 pt-10">
+			<Skeleton className="h-3 w-16" />
+			<Skeleton className="mt-3 h-8 w-32" />
+			<Skeleton className="mt-1 h-4 w-44" />
+
+			{/* Status card */}
+			<div className="mt-6 flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+				<Skeleton className="h-5 w-5 rounded-full" />
+				<div className="flex flex-col gap-1.5">
+					<Skeleton className="h-3 w-12" />
+					<Skeleton className="h-4 w-24" />
+				</div>
+			</div>
+
+			{/* Timeline */}
+			<div className="mt-6 flex flex-col gap-0">
+				{Array.from({ length: 5 }).map((_, i) => (
+					<div key={i} className="flex gap-3">
+						<div className="flex flex-col items-center">
+							<Skeleton className="h-8 w-8 rounded-full" />
+							{i < 4 ? <Skeleton className="w-0.5 flex-1" style={{ minHeight: 28 }} /> : null}
+						</div>
+						<div className="pb-6 pt-1">
+							<Skeleton className="h-4 w-24" />
+						</div>
+					</div>
+				))}
+			</div>
+
+			{/* Items */}
+			<section className="mt-6 flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+				<Skeleton className="h-3 w-10" />
+				{Array.from({ length: 3 }).map((_, i) => (
+					<div key={i} className="flex items-center justify-between gap-3 py-2.5">
+						<div className="flex flex-col gap-1.5">
+							<Skeleton className="h-4 w-32" />
+							<Skeleton className="h-3 w-20" />
+						</div>
+						<Skeleton className="h-4 w-16" />
+					</div>
+				))}
+				<Skeleton className="h-10 w-full rounded-xl" />
+			</section>
+		</main>
+	);
+}
+
 function TrackingRoute() {
 	const { shortId } = Route.useParams();
 	const order = useQuery(api.orders.get, { shortId });
 
 	if (order === undefined) {
-		return (
-			<main className="mx-auto flex min-h-dvh w-full max-w-md items-center justify-center px-5">
-				<p className="text-sm text-muted-foreground">Loading…</p>
-			</main>
-		);
+		return <TrackingSkeleton />;
 	}
 	if (order === null) {
 		return <OrderNotFound />;
