@@ -9,11 +9,13 @@ import {
 	MessageCircle,
 	Package,
 	Phone,
+	QrCode,
 	Share2,
 	type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { api } from "../../convex/_generated/api";
+import { StorefrontQrDialog } from "../components/dashboard/storefront-qr-dialog";
 import { Button } from "../components/ui/button";
 import { formatPrice } from "../lib/format";
 
@@ -38,6 +40,7 @@ function DashboardHome() {
 			: "skip",
 	);
 	const [copied, setCopied] = useState(false);
+	const [qrOpen, setQrOpen] = useState(false);
 
 	if (!retailer) return null;
 
@@ -172,10 +175,25 @@ function DashboardHome() {
 									Open store
 								</a>
 							</Button>
+							<Button
+								variant="outline"
+								className="h-11 w-11 shrink-0 p-0"
+								onClick={() => setQrOpen(true)}
+								aria-label="Show QR code"
+							>
+								<QrCode className="size-5" />
+							</Button>
 						</div>
 					</div>
 				</section>
 			)}
+
+			<StorefrontQrDialog
+				open={qrOpen}
+				onClose={() => setQrOpen(false)}
+				storeName={retailer.storeName}
+				storefrontUrl={storefrontUrl}
+			/>
 
 			{/* How it works — only for brand-new users */}
 			{isNew ? (
