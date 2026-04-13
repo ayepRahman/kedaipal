@@ -42,6 +42,11 @@ function Card({ children }: { children: ReactNode }) {
 }
 
 export const Route = createFileRoute("/app/settings")({
+	validateSearch: (search: Record<string, unknown>) => ({
+		tab: (["store", "whatsapp", "payments"].includes(search.tab as string)
+			? search.tab
+			: "store") as SettingsTab,
+	}),
 	component: SettingsRoute,
 });
 
@@ -82,7 +87,8 @@ function SettingsRoute() {
 	const renameSlug = useMutation(api.retailers.renameSlug);
 	const updateSettings = useMutation(api.retailers.updateSettings);
 
-	const [activeTab, setActiveTab] = useState<SettingsTab>("store");
+	const { tab } = Route.useSearch();
+	const [activeTab, setActiveTab] = useState<SettingsTab>(tab);
 	const [newSlug, setNewSlug] = useState("");
 	const [saving, setSaving] = useState(false);
 

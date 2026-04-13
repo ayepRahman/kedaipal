@@ -139,7 +139,7 @@ function DashboardHome() {
 			time: "~1 min",
 			cta: "Go to Settings",
 			to: "/app/settings",
-			tab: "?tab=whatsapp",
+			tab: "whatsapp",
 		},
 		{
 			key: "product",
@@ -162,6 +162,7 @@ function DashboardHome() {
 			time: "~2 min",
 			cta: "Go to Settings",
 			to: "/app/settings",
+			tab: "payments",
 		},
 	];
 
@@ -449,7 +450,7 @@ function ChecklistRow({ item, expanded }: { item: ChecklistItem; expanded: boole
 						</p>
 					</div>
 				</div>
-				<Link to={item.to}>
+				<Link to={item.to} search={item.tab ? { tab: item.tab } : undefined}>
 					<Button size="sm" className="h-10 w-full gap-2">
 						{item.cta}
 						<ArrowRight className="size-3.5" />
@@ -461,7 +462,7 @@ function ChecklistRow({ item, expanded }: { item: ChecklistItem; expanded: boole
 
 	return (
 		<li>
-			<Link to={item.to} className="block">
+			<Link to={item.to} search={item.tab ? { tab: item.tab } : undefined} className="block">
 				<div className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 transition-colors hover:bg-accent/5">
 					<div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-border bg-background text-[10px] font-bold text-muted-foreground">
 						{item.step}
