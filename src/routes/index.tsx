@@ -12,6 +12,7 @@ import {
 	Store,
 	Truck,
 } from "lucide-react";
+import { useAuth } from "@clerk/tanstack-react-start";
 import { useState } from "react";
 import { z } from "zod";
 import { Button } from "../components/ui/button";
@@ -182,16 +183,7 @@ function Nav() {
 				</div>
 				<div className="flex items-center gap-2">
 					<LanguageSwitcher />
-					<Button asChild variant="ghost" size="lg" className="hidden md:inline-flex">
-						<Link to="/sign-in/$" params={{ _splat: "" }}>
-							{m.nav_sign_in()}
-						</Link>
-					</Button>
-					<Button asChild size="lg">
-						<Link to="/sign-up/$" params={{ _splat: "" }}>
-							{m.nav_start_free()}
-						</Link>
-					</Button>
+					<NavAuthCta />
 				</div>
 			</div>
 		</nav>
@@ -219,9 +211,40 @@ function LanguageSwitcher() {
 	);
 }
 
+/* -------------------------- Nav Auth CTA -------------------------- */
+
+function NavAuthCta() {
+	const { isSignedIn } = useAuth();
+	if (isSignedIn) {
+		return (
+			<Button asChild size="lg">
+				<Link to="/app">
+					{m.nav_go_to_dashboard()}
+					<ArrowRight />
+				</Link>
+			</Button>
+		);
+	}
+	return (
+		<>
+			<Button asChild variant="ghost" size="lg" className="hidden md:inline-flex">
+				<Link to="/sign-in/$" params={{ _splat: "" }}>
+					{m.nav_sign_in()}
+				</Link>
+			</Button>
+			<Button asChild size="lg">
+				<Link to="/sign-up/$" params={{ _splat: "" }}>
+					{m.nav_start_free()}
+				</Link>
+			</Button>
+		</>
+	);
+}
+
 /* ------------------------------ Hero ------------------------------ */
 
 function Hero() {
+	const { isSignedIn } = useAuth();
 	return (
 		<section
 			id="top"
@@ -242,12 +265,21 @@ function Hero() {
 						{m.hero_subhead()}
 					</p>
 					<div className="flex flex-col gap-3 pt-2 sm:flex-row">
-						<Button asChild size="lg" className="h-12 px-6 text-base">
-							<Link to="/sign-up/$" params={{ _splat: "" }}>
-								{m.hero_cta_primary()}
-								<ArrowRight />
-							</Link>
-						</Button>
+						{isSignedIn ? (
+							<Button asChild size="lg" className="h-12 px-6 text-base">
+								<Link to="/app">
+									{m.nav_go_to_dashboard()}
+									<ArrowRight />
+								</Link>
+							</Button>
+						) : (
+							<Button asChild size="lg" className="h-12 px-6 text-base">
+								<Link to="/sign-up/$" params={{ _splat: "" }}>
+									{m.hero_cta_primary()}
+									<ArrowRight />
+								</Link>
+							</Button>
+						)}
 						<Button asChild variant="outline" size="lg" className="h-12 px-6 text-base">
 							<a href="#how">{m.hero_cta_secondary()}</a>
 						</Button>
@@ -606,6 +638,7 @@ function HowItWorks() {
 /* --------------------------- Setup Strip --------------------------- */
 
 function SetupStrip() {
+	const { isSignedIn } = useAuth();
 	const steps = [
 		{ title: m.setup_step_1_title(), body: m.setup_step_1_body() },
 		{ title: m.setup_step_2_title(), body: m.setup_step_2_body() },
@@ -649,10 +682,17 @@ function SetupStrip() {
 				</div>
 				<div className="mt-12 flex justify-center">
 					<Button asChild size="lg" className="h-12 px-8 text-base">
-						<Link to="/sign-up/$" params={{ _splat: "" }}>
-							{m.setup_cta()}
-							<ArrowRight />
-						</Link>
+						{isSignedIn ? (
+							<Link to="/app">
+								{m.nav_go_to_dashboard()}
+								<ArrowRight />
+							</Link>
+						) : (
+							<Link to="/sign-up/$" params={{ _splat: "" }}>
+								{m.setup_cta()}
+								<ArrowRight />
+							</Link>
+						)}
 					</Button>
 				</div>
 			</div>
@@ -726,6 +766,7 @@ function FeatureGrid() {
 /* --------------------------- Pricing Teaser --------------------------- */
 
 function PricingTeaser() {
+	const { isSignedIn } = useAuth();
 	return (
 		<section
 			id="pricing"
@@ -749,10 +790,17 @@ function PricingTeaser() {
 					</p>
 					<div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
 						<Button asChild size="lg" className="h-12 px-6 text-base">
-							<Link to="/sign-up/$" params={{ _splat: "" }}>
-								{m.pricing_cta()}
-								<ArrowRight />
-							</Link>
+							{isSignedIn ? (
+								<Link to="/app">
+									{m.nav_go_to_dashboard()}
+									<ArrowRight />
+								</Link>
+							) : (
+								<Link to="/sign-up/$" params={{ _splat: "" }}>
+									{m.pricing_cta()}
+									<ArrowRight />
+								</Link>
+							)}
 						</Button>
 					</div>
 				</div>
@@ -841,6 +889,7 @@ function Faq() {
 /* ------------------------------ Final CTA ------------------------------ */
 
 function FinalCta() {
+	const { isSignedIn } = useAuth();
 	return (
 		<section
 			aria-labelledby="final-cta-heading"
@@ -858,10 +907,17 @@ function FinalCta() {
 				</p>
 				<div className="mt-8 flex justify-center">
 					<Button asChild size="lg" className="h-12 px-8 text-base">
-						<Link to="/sign-up/$" params={{ _splat: "" }}>
-							{m.final_cta()}
-							<ArrowRight />
-						</Link>
+						{isSignedIn ? (
+							<Link to="/app">
+								{m.nav_go_to_dashboard()}
+								<ArrowRight />
+							</Link>
+						) : (
+							<Link to="/sign-up/$" params={{ _splat: "" }}>
+								{m.final_cta()}
+								<ArrowRight />
+							</Link>
+						)}
 					</Button>
 				</div>
 			</div>
