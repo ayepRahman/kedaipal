@@ -149,6 +149,7 @@ export function ProductForm({
 				/>
 				<Link
 					to="/app/settings"
+					search={{ tab: "store" }}
 					className="inline-flex items-center gap-1.5 self-start text-xs text-muted-foreground hover:text-foreground"
 				>
 					<Info className="size-3.5" aria-hidden />

@@ -400,6 +400,8 @@ function DashboardHome() {
 	);
 }
 
+type SettingsTab = "store" | "whatsapp" | "payments";
+
 type ChecklistItem = {
 	key: string;
 	step: number;
@@ -410,7 +412,7 @@ type ChecklistItem = {
 	time: string;
 	cta: string;
 	to: string;
-	tab?: string;
+	tab?: SettingsTab;
 };
 
 function ChecklistRow({ item, expanded }: { item: ChecklistItem; expanded: boolean }) {

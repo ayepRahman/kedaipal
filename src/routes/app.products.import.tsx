@@ -165,7 +165,7 @@ function ImportProductsRoute() {
 
 				<p className="text-xs text-muted-foreground">
 					Prices use your store currency ({retailer.currency}). Change it in{" "}
-					<Link to="/app/settings" className="underline">
+					<Link to="/app/settings" search={{ tab: "store" }} className="underline">
 						Settings
 					</Link>
 					. Images are not supported in CSV — add them per product after

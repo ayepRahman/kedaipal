@@ -142,6 +142,7 @@ function AppShell() {
 					</Link>
 					<Link
 						to="/app/settings"
+						search={{ tab: "store" }}
 						activeProps={{ className: "text-foreground" }}
 						inactiveProps={{ className: "text-muted-foreground" }}
 						className="flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 text-[10px]"
