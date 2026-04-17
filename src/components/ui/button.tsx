@@ -56,17 +56,20 @@ function Button({
 		asChild?: boolean;
 		isLoading?: boolean;
 	}) {
-	const Comp = asChild ? Slot.Root : "button";
+	const sharedProps = {
+		"data-slot": "button",
+		"data-variant": variant,
+		"data-size": size,
+		className: cn(buttonVariants({ variant, size, className })),
+		...props,
+	} as const;
+
+	if (asChild) {
+		return <Slot.Root {...sharedProps}>{children}</Slot.Root>;
+	}
 
 	return (
-		<Comp
-			data-slot="button"
-			data-variant={variant}
-			data-size={size}
-			disabled={isLoading || disabled}
-			className={cn(buttonVariants({ variant, size, className }))}
-			{...props}
-		>
+		<button {...sharedProps} disabled={isLoading || disabled}>
 			<span
 				className="inline-flex items-center gap-[inherit]"
 				style={{ visibility: isLoading ? "hidden" : "visible" }}
@@ -78,7 +81,7 @@ function Button({
 					<LoaderCircle className="size-4 animate-spin" />
 				</span>
 			)}
-		</Comp>
+		</button>
 	);
 }
 
