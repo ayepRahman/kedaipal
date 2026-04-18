@@ -12,11 +12,13 @@ import {
 	pickLocale,
 	renderMessage,
 	renderPaymentInstructions,
+	renderRetailerAlert,
 	SHORT_ID_REGEX,
 	type DeliveryMethod,
 	type Locale,
 	type MessageTemplates,
 	type PaymentInstructions,
+	type RetailerAlertKey,
 } from "./lib/whatsappCopy";
 
 type ResolvedPayment = {
@@ -262,6 +264,32 @@ export const handleInbound = internalAction({
 				console.error("WA payment QR send failed", err);
 			}
 		}
+
+		// Alert the retailer about the newly confirmed order (only on first
+		// confirmation, not idempotent re-sends). Sent directly from this action
+		// rather than via scheduler to avoid convex-test limitations with
+		// scheduled functions from mutations-within-actions.
+		if (!result.alreadyConfirmed && result.orderId) {
+			const alertMeta = await ctx.runQuery(
+				internal.whatsapp.getOrderForRetailerAlert,
+				{ orderId: result.orderId },
+			);
+			if (alertMeta?.retailerWaPhone) {
+				const totalFormatted = `${alertMeta.currency} ${(alertMeta.total / 100).toFixed(2)}`;
+				const alertBody = renderRetailerAlert(alertMeta.locale, "orderConfirmed", {
+					shortId: alertMeta.shortId,
+					itemCount: alertMeta.itemCount,
+					totalFormatted,
+					customerName: alertMeta.customerName,
+					deliveryMethod: alertMeta.deliveryMethod,
+				});
+				try {
+					await sendText(alertMeta.retailerWaPhone, alertBody);
+				} catch (err) {
+					console.error("WA retailer confirmation alert failed", err);
+				}
+			}
+		}
 	},
 });
 
@@ -313,6 +341,74 @@ export const notifyStatusChange = internalAction({
 			await sendText(meta.customerWaPhone, body);
 		} catch (err) {
 			console.error("WA status notify failed", err);
+		}
+	},
+});
+
+// ---------------------------------------------------------------------------
+// Retailer order alerts (WhatsApp notification TO the retailer)
+// ---------------------------------------------------------------------------
+
+export const getOrderForRetailerAlert = internalQuery({
+	args: { orderId: v.id("orders") },
+	handler: async (
+		ctx,
+		{ orderId },
+	): Promise<{
+		shortId: string;
+		status: Doc<"orders">["status"];
+		itemCount: number;
+		total: number;
+		currency: string;
+		customerName: string;
+		deliveryMethod: DeliveryMethod;
+		retailerWaPhone: string | undefined;
+		locale: Locale;
+	} | null> => {
+		const order = await ctx.db.get(orderId);
+		if (!order) return null;
+		const retailer = await ctx.db.get(order.retailerId);
+		if (!retailer) return null;
+		return {
+			shortId: order.shortId,
+			status: order.status,
+			itemCount: order.items.reduce((sum, i) => sum + i.quantity, 0),
+			total: order.total,
+			currency: order.currency,
+			customerName: order.customer.name ?? "Anonymous",
+			deliveryMethod: (order.deliveryMethod as DeliveryMethod | undefined) ?? "delivery",
+			retailerWaPhone: retailer.waPhone,
+			locale: (retailer.locale as Locale | undefined) ?? "en",
+		};
+	},
+});
+
+export const notifyRetailerOrderAlert = internalAction({
+	args: { orderId: v.id("orders") },
+	handler: async (ctx, { orderId }): Promise<void> => {
+		const meta = await ctx.runQuery(
+			internal.whatsapp.getOrderForRetailerAlert,
+			{ orderId },
+		);
+		if (!meta) return;
+		if (!meta.retailerWaPhone) return;
+
+		const alertKey: RetailerAlertKey =
+			meta.status === "pending" ? "newOrder" : "orderConfirmed";
+		const totalFormatted = `${meta.currency} ${(meta.total / 100).toFixed(2)}`;
+
+		const body = renderRetailerAlert(meta.locale, alertKey, {
+			shortId: meta.shortId,
+			itemCount: meta.itemCount,
+			totalFormatted,
+			customerName: meta.customerName,
+			deliveryMethod: meta.deliveryMethod,
+		});
+
+		try {
+			await sendText(meta.retailerWaPhone, body);
+		} catch (err) {
+			console.error("WA retailer alert failed", err);
 		}
 	},
 });

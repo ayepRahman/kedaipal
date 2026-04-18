@@ -76,12 +76,17 @@ async function createPendingOrder(
 }
 
 beforeEach(() => {
+	// Fake timers prevent scheduled functions (runAfter) from auto-firing
+	// during the test. This avoids a convex-test limitation where scheduled
+	// internalActions that call ctx.runQuery crash with "Transaction not started".
+	vi.useFakeTimers();
 	process.env.WHATSAPP_ACCESS_TOKEN = "test-token";
 	process.env.WHATSAPP_PHONE_NUMBER_ID = "test-phone-id";
 	process.env.WHATSAPP_VERIFY_TOKEN = "test-verify";
 });
 
 afterEach(() => {
+	vi.useRealTimers();
 	vi.restoreAllMocks();
 });
 
@@ -379,6 +384,7 @@ describe("whatsapp outbound on status change", () => {
 			},
 		});
 		const shortId = await createPendingOrder(t, retailerId, productId);
+		
 
 		// Confirm via inbound — should use custom confirm template
 		await t.action(internal.whatsapp.handleInbound, {

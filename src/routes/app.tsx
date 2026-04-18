@@ -13,6 +13,7 @@ import { useQuery } from "convex/react";
 import { Home, Package, ShoppingBag, Settings } from "lucide-react";
 import { useEffect } from "react";
 import { api } from "../../convex/_generated/api";
+import { useOrderToastNotifications } from "../hooks/useOrderToastNotifications";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/app")({
@@ -41,6 +42,7 @@ function AppShell() {
 		retailer ? { retailerId: retailer._id } : "skip",
 	);
 	const actionableCount = (counts?.pending ?? 0) + (counts?.confirmed ?? 0);
+	useOrderToastNotifications(counts);
 
 	useEffect(() => {
 		if (retailer === null) navigate({ to: "/onboarding" });
