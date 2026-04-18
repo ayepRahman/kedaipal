@@ -16,6 +16,7 @@ import {
 import { useState } from "react";
 import { api } from "../../convex/_generated/api";
 import { StorefrontQrDialog } from "../components/dashboard/storefront-qr-dialog";
+import { ShopeeIcon } from "../components/icons/shopee-icon";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
 import { formatPrice } from "../lib/format";
@@ -396,11 +397,39 @@ function DashboardHome() {
 					)}
 				</section>
 			) : null}
+
+			{/* Sales channels teaser — hidden for brand-new users */}
+			{!isNew ? (
+				<section className="flex flex-col gap-3">
+					<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Sales channels</h3>
+					<Link
+						to="/app/settings"
+						search={{ tab: "integrations" }}
+						className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-accent/5"
+					>
+						<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#EE4D2D]/10 text-[#EE4D2D]">
+							<ShopeeIcon className="size-6" />
+						</div>
+						<div className="flex flex-1 flex-col gap-0.5">
+							<div className="flex items-center gap-2">
+								<p className="text-sm font-semibold">Shopee</p>
+								<span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+									Coming soon
+								</span>
+							</div>
+							<p className="text-xs text-muted-foreground">
+								Sync products & orders from Shopee
+							</p>
+						</div>
+						<ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+					</Link>
+				</section>
+			) : null}
 		</div>
 	);
 }
 
-type SettingsTab = "store" | "whatsapp" | "payments";
+type SettingsTab = "store" | "whatsapp" | "payments" | "integrations";
 
 type ChecklistItem = {
 	key: string;

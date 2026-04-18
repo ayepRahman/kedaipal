@@ -13,6 +13,7 @@ import {
 	type TemplateKey,
 } from "../../convex/lib/whatsappCopy";
 import { useAppForm } from "../components/forms/form";
+import { ShopeeIcon } from "../components/icons/shopee-icon";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
 import { useSlugAvailability } from "../hooks/useSlugAvailability";
@@ -25,12 +26,13 @@ const LOCALE_OPTIONS = [
 	{ value: "ms", label: "Bahasa Malaysia" },
 ] as const;
 
-type SettingsTab = "store" | "whatsapp" | "payments";
+type SettingsTab = "store" | "whatsapp" | "payments" | "integrations";
 
 const SETTINGS_TABS: ReadonlyArray<{ id: SettingsTab; label: string }> = [
 	{ id: "store", label: "Store" },
 	{ id: "whatsapp", label: "WhatsApp" },
 	{ id: "payments", label: "Payments" },
+	{ id: "integrations", label: "Integrations" },
 ];
 
 function Card({ children }: { children: ReactNode }) {
@@ -43,7 +45,7 @@ function Card({ children }: { children: ReactNode }) {
 
 export const Route = createFileRoute("/app/settings")({
 	validateSearch: (search: Record<string, unknown>) => ({
-		tab: (["store", "whatsapp", "payments"].includes(search.tab as string)
+		tab: (["store", "whatsapp", "payments", "integrations"].includes(search.tab as string)
 			? search.tab
 			: "store") as SettingsTab,
 	}),
@@ -249,6 +251,58 @@ function SettingsRoute() {
 								updateSettings({ paymentInstructions })
 							}
 						/>
+					</Card>
+				</div>
+			) : null}
+
+			{activeTab === "integrations" ? (
+				<div className="flex flex-col gap-6 pt-2">
+					<div className="rounded-xl border border-border bg-muted/40 px-4 py-3 flex flex-col gap-2">
+						<p className="text-sm font-medium">Marketplace channels</p>
+						<p className="text-sm text-muted-foreground">
+							Connect your marketplace accounts to sync products and orders automatically.
+							More channels are on the way.
+						</p>
+					</div>
+
+					<Card>
+						<div className="flex items-start gap-4">
+							<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#EE4D2D]/10 text-[#EE4D2D]">
+								<ShopeeIcon className="size-6" />
+							</div>
+							<div className="flex flex-1 flex-col gap-1">
+								<div className="flex items-center gap-2">
+									<h3 className="text-sm font-semibold">Shopee</h3>
+									<span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+										Coming soon
+									</span>
+								</div>
+								<p className="text-xs text-muted-foreground">
+									Sync your Shopee products and orders into Kedaipal. Manage everything from one dashboard.
+								</p>
+							</div>
+						</div>
+						<Button disabled className="h-12 w-full">
+							Connect Shopee
+						</Button>
+					</Card>
+
+					<Card>
+						<div className="flex items-start gap-4">
+							<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-6" aria-hidden="true">
+									<circle cx="12" cy="12" r="10" />
+									<line x1="12" y1="8" x2="12" y2="16" />
+									<line x1="8" y1="12" x2="16" y2="12" />
+								</svg>
+							</div>
+							<div className="flex flex-1 flex-col gap-1">
+								<h3 className="text-sm font-semibold text-muted-foreground">More channels</h3>
+								<p className="text-xs text-muted-foreground">
+									Lazada, TikTok Shop, and more marketplace integrations are planned. Stay tuned!
+								</p>
+							</div>
+						</div>
 					</Card>
 				</div>
 			) : null}
