@@ -165,20 +165,25 @@ function OrdersRoute() {
 }
 
 const STATUS_STYLES: Record<OrderStatus, string> = {
-	pending: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300",
+	pending:
+		"bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300",
 	confirmed: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200",
 	packed: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
-	shipped: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200",
-	delivered: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200",
+	shipped:
+		"bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200",
+	delivered:
+		"bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200",
 	cancelled: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
 };
 
 function OrderListSkeleton() {
 	return (
 		<ul className="flex flex-col gap-2">
-			{Array.from({ length: 4 }).map((_, i) => (
-				// biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholders are stable
-				<li key={i} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+			{[0, 1, 2, 3].map((n) => (
+				<li
+					key={n}
+					className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4"
+				>
 					<div className="flex flex-1 flex-col gap-2">
 						<div className="flex items-center gap-2">
 							<Skeleton className="h-4 w-20 rounded" />

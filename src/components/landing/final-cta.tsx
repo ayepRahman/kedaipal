@@ -1,8 +1,8 @@
+import { useAuth } from "@clerk/tanstack-react-start";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { useAuth } from "@clerk/tanstack-react-start";
-import { Button } from "../ui/button";
 import { m } from "../../paraglide/messages";
+import { Button } from "../ui/button";
 
 export function FinalCta() {
 	const { isSignedIn } = useAuth();

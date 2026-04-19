@@ -1,10 +1,10 @@
+import { useAuth } from "@clerk/tanstack-react-start";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Globe, Menu, X } from "lucide-react";
-import { useAuth } from "@clerk/tanstack-react-start";
 import { useCallback, useEffect, useState } from "react";
-import { Button } from "../ui/button";
 import { m } from "../../paraglide/messages";
 import { getLocale, setLocale } from "../../paraglide/runtime";
+import { Button } from "../ui/button";
 
 function LanguageSwitcher() {
 	const current = getLocale();
@@ -18,9 +18,7 @@ function LanguageSwitcher() {
 			aria-label={m.lang_switcher_label()}
 		>
 			<Globe />
-			<span className="hidden sm:inline">
-				{current === "ms" ? "EN" : "BM"}
-			</span>
+			<span className="hidden sm:inline">{current === "ms" ? "EN" : "BM"}</span>
 		</Button>
 	);
 }
@@ -39,7 +37,12 @@ function NavAuthCta() {
 	}
 	return (
 		<>
-			<Button asChild variant="ghost" size="lg" className="hidden md:inline-flex">
+			<Button
+				asChild
+				variant="ghost"
+				size="lg"
+				className="hidden md:inline-flex"
+			>
 				<Link to="/sign-in/$" params={{ _splat: "" }}>
 					{m.nav_sign_in()}
 				</Link>

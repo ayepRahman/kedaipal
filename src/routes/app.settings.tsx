@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { convexErrorMessage } from "../lib/format";
 import { useMutation, useQuery } from "convex/react";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
@@ -7,9 +6,9 @@ import { api } from "../../convex/_generated/api";
 import { SUPPORTED_CURRENCIES } from "../../convex/lib/currency";
 import {
 	defaultTemplate,
-	TEMPLATE_KEYS,
 	type Locale,
 	type MessageTemplates,
+	TEMPLATE_KEYS,
 	type TemplateKey,
 } from "../../convex/lib/whatsappCopy";
 import { useAppForm } from "../components/forms/form";
@@ -17,9 +16,13 @@ import { ShopeeIcon } from "../components/icons/shopee-icon";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
 import { useSlugAvailability } from "../hooks/useSlugAvailability";
+import { convexErrorMessage } from "../lib/format";
 import { settingsWaPhoneFormSchema } from "../lib/schemas";
 
-const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES.map((c) => ({ value: c, label: c }));
+const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES.map((c) => ({
+	value: c,
+	label: c,
+}));
 
 const LOCALE_OPTIONS = [
 	{ value: "en", label: "English" },
@@ -45,7 +48,9 @@ function Card({ children }: { children: ReactNode }) {
 
 export const Route = createFileRoute("/app/settings")({
 	validateSearch: (search: Record<string, unknown>) => ({
-		tab: (["store", "whatsapp", "payments", "integrations"].includes(search.tab as string)
+		tab: (["store", "whatsapp", "payments", "integrations"].includes(
+			search.tab as string,
+		)
 			? search.tab
 			: "store") as SettingsTab,
 	}),
@@ -62,15 +67,18 @@ function SettingsSkeleton() {
 
 			{/* Tab bar */}
 			<div className="flex gap-1 border-b border-input">
-				{Array.from({ length: 3 }).map((_, i) => (
-					<Skeleton key={i} className="h-11 w-20" />
+				{[0, 1, 2].map((n) => (
+					<Skeleton key={n} className="h-11 w-20" />
 				))}
 			</div>
 
 			{/* Form cards */}
 			<div className="flex flex-col gap-6 pt-2">
-				{Array.from({ length: 2 }).map((_, i) => (
-					<section key={i} className="flex flex-col gap-4 rounded-2xl border border-input bg-background p-4">
+				{[0, 1].map((n) => (
+					<section
+						key={n}
+						className="flex flex-col gap-4 rounded-2xl border border-input bg-background p-4"
+					>
 						<div className="flex flex-col gap-1">
 							<Skeleton className="h-4 w-28" />
 							<Skeleton className="h-3 w-full" />
@@ -106,7 +114,9 @@ function SettingsRoute() {
 		setSaving(true);
 		try {
 			await renameSlug({ newSlug });
-			toast.success(`Renamed. Links to /${previous} will redirect for 90 days.`);
+			toast.success(
+				`Renamed. Links to /${previous} will redirect for 90 days.`,
+			);
 			setNewSlug("");
 		} catch (err) {
 			toast.error(convexErrorMessage(err));
@@ -206,15 +216,21 @@ function SettingsRoute() {
 			{activeTab === "whatsapp" ? (
 				<div className="flex flex-col gap-6 pt-2">
 					<div className="rounded-xl border border-border bg-muted/40 px-4 py-3 flex flex-col gap-2">
-						<p className="text-sm font-medium">How WhatsApp works on Kedaipal</p>
+						<p className="text-sm font-medium">
+							How WhatsApp works on Kedaipal
+						</p>
 						<p className="text-sm text-muted-foreground">
-							All automated order messages (confirmations, packed, shipped, delivered) are sent
-							from{" "}<span className="font-medium text-foreground">Kedaipal's shared WhatsApp Business number</span>{" "}
+							All automated order messages (confirmations, packed, shipped,
+							delivered) are sent from{" "}
+							<span className="font-medium text-foreground">
+								Kedaipal's shared WhatsApp Business number
+							</span>{" "}
 							on your behalf — no Meta account needed.
 						</p>
 						<p className="text-sm text-muted-foreground">
-							Add your personal WhatsApp number below so buyers can reach you directly. It
-							appears as a tappable contact link in automated messages.
+							Add your personal WhatsApp number below so buyers can reach you
+							directly. It appears as a tappable contact link in automated
+							messages.
 						</p>
 					</div>
 
@@ -260,8 +276,8 @@ function SettingsRoute() {
 					<div className="rounded-xl border border-border bg-muted/40 px-4 py-3 flex flex-col gap-2">
 						<p className="text-sm font-medium">Marketplace channels</p>
 						<p className="text-sm text-muted-foreground">
-							Connect your marketplace accounts to sync products and orders automatically.
-							More channels are on the way.
+							Connect your marketplace accounts to sync products and orders
+							automatically. More channels are on the way.
 						</p>
 					</div>
 
@@ -278,7 +294,8 @@ function SettingsRoute() {
 									</span>
 								</div>
 								<p className="text-xs text-muted-foreground">
-									Sync your Shopee products and orders into Kedaipal. Manage everything from one dashboard.
+									Sync your Shopee products and orders into Kedaipal. Manage
+									everything from one dashboard.
 								</p>
 							</div>
 						</div>
@@ -290,16 +307,29 @@ function SettingsRoute() {
 					<Card>
 						<div className="flex items-start gap-4">
 							<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-6" aria-hidden="true">
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									className="size-6"
+									aria-hidden="true"
+								>
 									<circle cx="12" cy="12" r="10" />
 									<line x1="12" y1="8" x2="12" y2="16" />
 									<line x1="8" y1="12" x2="16" y2="12" />
 								</svg>
 							</div>
 							<div className="flex flex-1 flex-col gap-1">
-								<h3 className="text-sm font-semibold text-muted-foreground">More channels</h3>
+								<h3 className="text-sm font-semibold text-muted-foreground">
+									More channels
+								</h3>
 								<p className="text-xs text-muted-foreground">
-									Lazada, TikTok Shop, and more marketplace integrations are planned. Stay tuned!
+									Lazada, TikTok Shop, and more marketplace integrations are
+									planned. Stay tuned!
 								</p>
 							</div>
 						</div>
@@ -368,7 +398,9 @@ function StoreNameForm({
 					maxLength={80}
 					className="min-h-11 rounded-xl border border-input bg-background px-4 text-base outline-none focus:border-ring focus:ring-2 focus:ring-ring/50"
 				/>
-				<span className="text-xs text-muted-foreground">{value.trim().length}/80</span>
+				<span className="text-xs text-muted-foreground">
+					{value.trim().length}/80
+				</span>
 			</label>
 			<Button type="submit" disabled={!dirty || saving} className="h-12">
 				{saving ? "Saving…" : "Save name"}
@@ -474,7 +506,6 @@ function LogoForm({
 					/>
 				</label>
 			)}
-
 		</div>
 	);
 }
@@ -567,9 +598,9 @@ function PaymentInstructionsForm({
 			<div className="flex flex-col gap-1">
 				<h3 className="text-sm font-medium">Payment details</h3>
 				<p className="text-xs text-muted-foreground">
-					Shown to shoppers in the WhatsApp confirmation reply after they
-					place an order. Leave any field blank to skip it. Visible only after
-					order — not on your public storefront.
+					Shown to shoppers in the WhatsApp confirmation reply after they place
+					an order. Leave any field blank to skip it. Visible only after order —
+					not on your public storefront.
 				</p>
 			</div>
 
@@ -671,7 +702,6 @@ function PaymentInstructionsForm({
 					Clear all
 				</Button>
 			</div>
-
 		</form>
 	);
 }
@@ -729,8 +759,8 @@ function MessageTemplatesForm({
 				<p className="text-xs text-muted-foreground">
 					Override the default copy. Use{" "}
 					<code className="font-mono">{"{shortId}"}</code> and{" "}
-					<code className="font-mono">{"{storeName}"}</code> as variables.
-					Leave blank to use the default.
+					<code className="font-mono">{"{storeName}"}</code> as variables. Leave
+					blank to use the default.
 				</p>
 			</div>
 
@@ -865,9 +895,8 @@ function CurrencyForm({
 
 	return (
 		<form onSubmit={handleSubmit} className="flex flex-col gap-4">
-			<form.AppField
-				name="currency"
-				children={(field) => (
+			<form.AppField name="currency">
+				{(field) => (
 					<field.SelectField
 						label="Storefront currency"
 						options={CURRENCY_OPTIONS}
@@ -875,7 +904,7 @@ function CurrencyForm({
 						description="Used for new products and order totals. Existing products keep their original currency."
 					/>
 				)}
-			/>
+			</form.AppField>
 
 			<form.Subscribe
 				selector={(s) => ({
@@ -883,7 +912,8 @@ function CurrencyForm({
 					isSubmitting: s.isSubmitting,
 					values: s.values,
 				})}
-				children={({ canSubmit, isSubmitting, values }) => {
+			>
+				{({ canSubmit, isSubmitting, values }) => {
 					const dirty = values.currency !== current;
 					return (
 						<Button
@@ -895,8 +925,7 @@ function CurrencyForm({
 						</Button>
 					);
 				}}
-			/>
-
+			</form.Subscribe>
 		</form>
 	);
 }
@@ -929,9 +958,8 @@ function WaPhoneForm({
 
 	return (
 		<form onSubmit={handleSubmit} className="flex flex-col gap-4">
-			<form.AppField
-				name="waPhone"
-				children={(field) => (
+			<form.AppField name="waPhone">
+				{(field) => (
 					<field.TextField
 						label="Your contact WhatsApp number"
 						placeholder="60123456789"
@@ -942,7 +970,7 @@ function WaPhoneForm({
 						description="Country code + number, digits only. Shown to buyers in order confirmations and updates so they can reach you directly."
 					/>
 				)}
-			/>
+			</form.AppField>
 
 			<form.Subscribe
 				selector={(s) => ({
@@ -950,7 +978,8 @@ function WaPhoneForm({
 					isSubmitting: s.isSubmitting,
 					values: s.values,
 				})}
-				children={({ canSubmit, isSubmitting, values }) => {
+			>
+				{({ canSubmit, isSubmitting, values }) => {
 					const dirty = values.waPhone.trim() !== current.trim();
 					return (
 						<Button
@@ -962,8 +991,7 @@ function WaPhoneForm({
 						</Button>
 					);
 				}}
-			/>
-
+			</form.Subscribe>
 		</form>
 	);
 }

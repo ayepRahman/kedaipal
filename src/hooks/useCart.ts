@@ -106,7 +106,6 @@ export function useCart(retailerId: Id<"retailers"> | undefined) {
 	const [state, dispatch] = useReducer(reducer, EMPTY_STATE);
 
 	// Hydrate from localStorage when retailerId becomes available or changes.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: dispatch is stable
 	useEffect(() => {
 		if (!retailerId) return;
 		dispatch({ type: "HYDRATE", items: readPersisted(retailerId) });

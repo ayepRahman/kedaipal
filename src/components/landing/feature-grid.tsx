@@ -1,4 +1,11 @@
-import { BarChart3, MessageCircle, Package, Sparkles, Store, Truck } from "lucide-react";
+import {
+	BarChart3,
+	MessageCircle,
+	Package,
+	Sparkles,
+	Store,
+	Truck,
+} from "lucide-react";
 import { m } from "../../paraglide/messages";
 import { FadeIn } from "./fade-in";
 

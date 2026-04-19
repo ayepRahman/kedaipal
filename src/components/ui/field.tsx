@@ -35,6 +35,7 @@ export function FieldLabel({
 	...props
 }: React.ComponentProps<"label">) {
 	return (
+		// biome-ignore lint/a11y/noLabelWithoutControl: generic label component — control is provided by callers
 		<label
 			data-slot="field-label"
 			className={cn("text-sm font-medium", className)}

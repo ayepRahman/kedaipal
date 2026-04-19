@@ -1,8 +1,8 @@
 import type { FunctionReturnType } from "convex/server";
 import { Plus } from "lucide-react";
 import type { api } from "../../../convex/_generated/api";
-import { Button } from "../ui/button";
 import { formatPrice } from "../../lib/format";
+import { Button } from "../ui/button";
 
 export type StorefrontProduct = FunctionReturnType<
 	typeof api.products.list

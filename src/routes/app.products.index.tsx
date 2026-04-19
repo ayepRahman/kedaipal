@@ -119,6 +119,7 @@ function ProductsRoute() {
 							strokeWidth="2"
 							strokeLinecap="round"
 							strokeLinejoin="round"
+							aria-hidden="true"
 							className="size-4"
 						>
 							<path d="M18 6 6 18" />
@@ -176,11 +177,7 @@ function ProductsRoute() {
 							Nothing found for &ldquo;{query}&rdquo;.
 						</p>
 					) : null}
-					<Button
-						variant="ghost"
-						onClick={clearFilters}
-						className="mt-4 h-10"
-					>
+					<Button variant="ghost" onClick={clearFilters} className="mt-4 h-10">
 						Clear filters
 					</Button>
 				</div>
@@ -257,9 +254,9 @@ function ProductsRoute() {
 function ProductListSkeleton() {
 	return (
 		<ul className="flex flex-col gap-3">
-			{Array.from({ length: 5 }).map((_, i) => (
+			{[0, 1, 2, 3, 4].map((n) => (
 				<li
-					key={i}
+					key={n}
 					className="flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-card p-3"
 				>
 					<Skeleton className="size-16 shrink-0 rounded-xl" />

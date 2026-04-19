@@ -1,8 +1,8 @@
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
-import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
 import { m } from "../../paraglide/messages";
+import { Button } from "../ui/button";
 
 export function Faq() {
 	const [openIndex, setOpenIndex] = useState<number | null>(0);
@@ -61,15 +61,14 @@ export function Faq() {
 										)}
 									/>
 								</Button>
-								<div
+								<section
 									id={panelId}
-									role="region"
 									aria-labelledby={buttonId}
 									hidden={!isOpen}
 									className="border-t border-border px-5 py-4 text-sm text-muted-foreground"
 								>
 									{item.a}
-								</div>
+								</section>
 							</div>
 						);
 					})}

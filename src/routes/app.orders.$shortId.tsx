@@ -1,6 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
-import { ChevronLeft, ExternalLink, MessageCircle, Package, Truck, User } from "lucide-react";
+import {
+	ChevronLeft,
+	ExternalLink,
+	MessageCircle,
+	Package,
+	Truck,
+	User,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
@@ -47,7 +54,12 @@ function OrderDetailSkeleton() {
 	);
 }
 
-type Transition = "confirmed" | "packed" | "shipped" | "delivered" | "cancelled";
+type Transition =
+	| "confirmed"
+	| "packed"
+	| "shipped"
+	| "delivered"
+	| "cancelled";
 type DeliveryMethod = "delivery" | "self_collect";
 
 const NEXT_STATUS: Record<string, Transition[]> = {
@@ -75,8 +87,12 @@ const SELF_COLLECT_TRANSITION_LABELS: Record<Transition, string> = {
 	cancelled: "Cancel Order",
 };
 
-function getTransitionLabels(method: DeliveryMethod): Record<Transition, string> {
-	return method === "self_collect" ? SELF_COLLECT_TRANSITION_LABELS : DELIVERY_TRANSITION_LABELS;
+function getTransitionLabels(
+	method: DeliveryMethod,
+): Record<Transition, string> {
+	return method === "self_collect"
+		? SELF_COLLECT_TRANSITION_LABELS
+		: DELIVERY_TRANSITION_LABELS;
 }
 
 function OrderDetailRoute() {
@@ -99,7 +115,8 @@ function OrderDetailRoute() {
 	const isSelfCollect = deliveryMethod === "self_collect";
 	const transitionLabels = getTransitionLabels(deliveryMethod);
 	const transitions = NEXT_STATUS[order.status] ?? [];
-	const showCarrierSection = !isSelfCollect && !["pending", "cancelled"].includes(order.status);
+	const showCarrierSection =
+		!isSelfCollect && !["pending", "cancelled"].includes(order.status);
 	const editingCarrier = carrierInput !== null;
 
 	async function handleTransition(next: Transition) {
@@ -232,7 +249,9 @@ function OrderDetailRoute() {
 				</ul>
 				<div className="flex items-center justify-between rounded-xl bg-muted/50 px-3 py-2.5 text-sm font-bold">
 					<span>Total</span>
-					<span className="tabular-nums">{formatPrice(order.total, order.currency)}</span>
+					<span className="tabular-nums">
+						{formatPrice(order.total, order.currency)}
+					</span>
 				</div>
 			</section>
 
@@ -257,7 +276,7 @@ function OrderDetailRoute() {
 					{editingCarrier ? (
 						<div className="flex flex-col gap-2">
 							<input
-								// eslint-disable-next-line jsx-a11y/no-autofocus
+								// biome-ignore lint/a11y/noAutofocus: intentional UX — input appears on user action
 								autoFocus
 								type="url"
 								value={carrierInput}
@@ -266,7 +285,8 @@ function OrderDetailRoute() {
 								className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
 							/>
 							<p className="text-xs text-muted-foreground">
-								SPX, Lalamove, NinjaVan, J&amp;T, etc. Sent to the customer via WhatsApp.
+								SPX, Lalamove, NinjaVan, J&amp;T, etc. Sent to the customer via
+								WhatsApp.
 							</p>
 							<div className="flex gap-2">
 								<Button
@@ -298,7 +318,9 @@ function OrderDetailRoute() {
 							<ExternalLink className="size-3 shrink-0" />
 						</a>
 					) : (
-						<p className="text-sm text-muted-foreground">No tracking link added yet.</p>
+						<p className="text-sm text-muted-foreground">
+							No tracking link added yet.
+						</p>
 					)}
 				</section>
 			) : null}

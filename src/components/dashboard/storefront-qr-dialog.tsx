@@ -1,7 +1,7 @@
 import { Download, X } from "lucide-react";
-import QRCode from "react-qr-code";
 import { Dialog } from "radix-ui";
 import { useRef } from "react";
+import QRCode from "react-qr-code";
 import { Button } from "../ui/button";
 
 interface StorefrontQrDialogProps {
@@ -33,7 +33,8 @@ export function StorefrontQrDialog({
 		const urlFontSize = 14;
 		const topTextHeight = titleFontSize + TEXT_GAP;
 		const bottomTextHeight = urlFontSize + TEXT_GAP;
-		const CANVAS_H = PADDING + topTextHeight + QR_SIZE + bottomTextHeight + PADDING;
+		const CANVAS_H =
+			PADDING + topTextHeight + QR_SIZE + bottomTextHeight + PADDING;
 
 		const canvas = document.createElement("canvas");
 		canvas.width = CANVAS_W;
@@ -64,13 +65,7 @@ export function StorefrontQrDialog({
 		await new Promise<void>((resolve) => {
 			const img = new Image();
 			img.onload = () => {
-				ctx.drawImage(
-					img,
-					(CANVAS_W - QR_SIZE) / 2,
-					qrY,
-					QR_SIZE,
-					QR_SIZE,
-				);
+				ctx.drawImage(img, (CANVAS_W - QR_SIZE) / 2, qrY, QR_SIZE, QR_SIZE);
 				resolve();
 			};
 			img.src = url;
@@ -126,26 +121,15 @@ export function StorefrontQrDialog({
 					<div className="flex flex-col items-center gap-6 overflow-y-auto px-6 py-6">
 						{/* QR Card */}
 						<div className="flex flex-col items-center gap-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-							<p className="text-sm font-semibold text-gray-900">
-								{storeName}
-							</p>
+							<p className="text-sm font-semibold text-gray-900">{storeName}</p>
 							<div ref={containerRef}>
-								<QRCode
-									value={storefrontUrl}
-									size={200}
-									level="M"
-								/>
+								<QRCode value={storefrontUrl} size={200} level="M" />
 							</div>
-							<p className="font-mono text-xs text-gray-500">
-								{storefrontUrl}
-							</p>
+							<p className="font-mono text-xs text-gray-500">{storefrontUrl}</p>
 						</div>
 
 						{/* Download button */}
-						<Button
-							onClick={handleDownload}
-							className="h-11 w-full gap-2"
-						>
+						<Button onClick={handleDownload} className="h-11 w-full gap-2">
 							<Download className="size-4" />
 							Download PNG
 						</Button>

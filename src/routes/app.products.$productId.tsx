@@ -38,7 +38,7 @@ function ProductDetailSkeleton() {
 				<Skeleton className="h-11 w-full rounded-xl" />
 			</div>
 		</div>
-	)
+	);
 }
 
 function EditProductRoute() {

@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
 import { Button } from "../components/ui/button";
 import { useSlugAvailability } from "../hooks/useSlugAvailability";
-import { slugify } from "../lib/slug";
 import { convexErrorMessage } from "../lib/format";
+import { slugify } from "../lib/slug";
 
 export const Route = createFileRoute("/onboarding")({
 	component: OnboardingRoute,
@@ -116,8 +116,7 @@ function OnboardingForm() {
 					</div>
 					<AvailabilityHint state={availability} />
 				</Field>
-
-				</form>
+			</form>
 
 			<div className="fixed inset-x-0 bottom-0 border-t border-border bg-background px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
 				<div className="mx-auto max-w-md">

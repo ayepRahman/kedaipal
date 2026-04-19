@@ -31,17 +31,28 @@ function getHowStepDetails() {
 							<Store className="size-4 text-accent" />
 						</div>
 						<div>
-							<p className="text-sm font-semibold">{m.how_detail_2_store_name()}</p>
-							<p className="text-xs text-muted-foreground">{m.how_detail_2_store_url()}</p>
+							<p className="text-sm font-semibold">
+								{m.how_detail_2_store_name()}
+							</p>
+							<p className="text-xs text-muted-foreground">
+								{m.how_detail_2_store_url()}
+							</p>
 						</div>
 					</div>
 					<div className="grid grid-cols-2 gap-2">
-						{[m.how_detail_2_product_1(), m.how_detail_2_product_2()].map((item) => (
-							<div key={item} className="rounded-lg border border-border bg-muted/40 p-2">
-								<div className="mb-1.5 h-12 rounded bg-accent/10" />
-								<p className="text-[11px] font-medium leading-tight">{item}</p>
-							</div>
-						))}
+						{[m.how_detail_2_product_1(), m.how_detail_2_product_2()].map(
+							(item) => (
+								<div
+									key={item}
+									className="rounded-lg border border-border bg-muted/40 p-2"
+								>
+									<div className="mb-1.5 h-12 rounded bg-accent/10" />
+									<p className="text-[11px] font-medium leading-tight">
+										{item}
+									</p>
+								</div>
+							),
+						)}
 					</div>
 				</div>
 			),
@@ -53,7 +64,9 @@ function getHowStepDetails() {
 				<div className="space-y-2 rounded-xl bg-[#ECE5DD] p-4">
 					<div className="flex justify-end">
 						<div className="max-w-[90%] rounded-xl rounded-tr-sm bg-[#DCF8C6] px-3 py-2 shadow-sm">
-							<p className="text-[11px] font-bold text-slate-800">{m.how_detail_3_order_id()}</p>
+							<p className="text-[11px] font-bold text-slate-800">
+								{m.how_detail_3_order_id()}
+							</p>
 							<div className="mt-1 space-y-0.5 text-[10px] text-slate-700">
 								<p>• {m.how_detail_3_item()}</p>
 								<p>• {m.how_detail_3_total()}</p>

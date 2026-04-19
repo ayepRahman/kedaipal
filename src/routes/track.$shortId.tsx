@@ -1,6 +1,14 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
-import { CheckCircle, Clock, ExternalLink, Package, Store, Truck, XCircle } from "lucide-react";
+import {
+	CheckCircle,
+	Clock,
+	ExternalLink,
+	Package,
+	Store,
+	Truck,
+	XCircle,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { api } from "../../convex/_generated/api";
 import { Skeleton } from "../components/ui/skeleton";
@@ -50,7 +58,12 @@ function getStatusConfig(method: DeliveryMethod): Record<string, StatusCfg> {
 		},
 		shipped: {
 			label: method === "self_collect" ? "Ready for Pickup" : "On the Way",
-			icon: method === "self_collect" ? <Store className="size-5" /> : <Truck className="size-5" />,
+			icon:
+				method === "self_collect" ? (
+					<Store className="size-5" />
+				) : (
+					<Truck className="size-5" />
+				),
 			color: "text-orange-500",
 		},
 		delivered: {
@@ -105,11 +118,13 @@ function TrackingSkeleton() {
 
 			{/* Timeline */}
 			<div className="mt-6 flex flex-col gap-0">
-				{Array.from({ length: 5 }).map((_, i) => (
-					<div key={i} className="flex gap-3">
+				{[0, 1, 2, 3, 4].map((n) => (
+					<div key={n} className="flex gap-3">
 						<div className="flex flex-col items-center">
 							<Skeleton className="h-8 w-8 rounded-full" />
-							{i < 4 ? <Skeleton className="w-0.5 flex-1" style={{ minHeight: 28 }} /> : null}
+							{n < 4 ? (
+								<Skeleton className="w-0.5 flex-1" style={{ minHeight: 28 }} />
+							) : null}
 						</div>
 						<div className="pb-6 pt-1">
 							<Skeleton className="h-4 w-24" />
@@ -121,8 +136,11 @@ function TrackingSkeleton() {
 			{/* Items */}
 			<section className="mt-6 flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
 				<Skeleton className="h-3 w-10" />
-				{Array.from({ length: 3 }).map((_, i) => (
-					<div key={i} className="flex items-center justify-between gap-3 py-2.5">
+				{[0, 1, 2].map((n) => (
+					<div
+						key={n}
+						className="flex items-center justify-between gap-3 py-2.5"
+					>
 						<div className="flex flex-col gap-1.5">
 							<Skeleton className="h-4 w-32" />
 							<Skeleton className="h-3 w-20" />
@@ -240,7 +258,11 @@ function TrackingRoute() {
 
 			{/* Delivery method */}
 			<div className="mt-4 flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-sm font-medium text-muted-foreground">
-				{isSelfCollect ? <Package className="size-4" /> : <Truck className="size-4" />}
+				{isSelfCollect ? (
+					<Package className="size-4" />
+				) : (
+					<Truck className="size-4" />
+				)}
 				{isSelfCollect ? "Self Collect" : "Delivery"}
 			</div>
 
@@ -258,8 +280,7 @@ function TrackingRoute() {
 							<div className="min-w-0 flex-1">
 								<p className="truncate text-sm font-medium">{item.name}</p>
 								<p className="text-xs text-muted-foreground">
-									{item.quantity} ×{" "}
-									{formatPrice(item.price, order.currency)}
+									{item.quantity} × {formatPrice(item.price, order.currency)}
 								</p>
 							</div>
 							<p className="shrink-0 text-sm font-semibold tabular-nums">

@@ -34,7 +34,9 @@ function buildWaMessage(
 	}
 	lines.push("");
 	lines.push(`Total: ${formatPrice(cart.total, cart.currency)}`);
-	lines.push(deliveryMethod === "self_collect" ? "📍 Self Collect" : "🚚 Delivery");
+	lines.push(
+		deliveryMethod === "self_collect" ? "📍 Self Collect" : "🚚 Delivery",
+	);
 	return lines.join("\n");
 }
 
@@ -52,7 +54,10 @@ export function CheckoutSheet({
 	const noCheckoutPhone = !checkoutPhone;
 
 	const form = useAppForm({
-		defaultValues: { name: "", deliveryMethod: "delivery" as "delivery" | "self_collect" },
+		defaultValues: {
+			name: "",
+			deliveryMethod: "delivery" as "delivery" | "self_collect",
+		},
 		validators: { onChange: checkoutFormSchema },
 		onSubmit: async ({ value }) => {
 			setServerError(null);
@@ -77,7 +82,12 @@ export function CheckoutSheet({
 					},
 					deliveryMethod: value.deliveryMethod,
 				});
-				const message = buildWaMessage(storeName, shortId, cart, value.deliveryMethod);
+				const message = buildWaMessage(
+					storeName,
+					shortId,
+					cart,
+					value.deliveryMethod,
+				);
 				const url = `https://wa.me/${checkoutPhone}?text=${encodeURIComponent(message)}`;
 				cart.clearCart();
 				form.reset();
@@ -174,20 +184,18 @@ export function CheckoutSheet({
 							)}
 
 							<div className="mt-5 flex flex-col gap-4">
-								<form.AppField
-									name="name"
-									children={(field) => (
+								<form.AppField name="name">
+									{(field) => (
 										<field.TextField
 											label="Your name (optional)"
 											placeholder="Ali"
 											autoComplete="name"
 										/>
 									)}
-								/>
+								</form.AppField>
 								{/* Delivery method */}
-								<form.AppField
-									name="deliveryMethod"
-									children={(field) => (
+								<form.AppField name="deliveryMethod">
+									{(field) => (
 										<fieldset className="flex flex-col gap-2">
 											<legend className="text-sm font-medium">
 												How would you like to receive your order?
@@ -220,12 +228,13 @@ export function CheckoutSheet({
 											</div>
 										</fieldset>
 									)}
-								/>
+								</form.AppField>
 							</div>
 
 							{noCheckoutPhone ? (
 								<p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-									Order checkout is temporarily unavailable. Please try again shortly or contact the store owner.
+									Order checkout is temporarily unavailable. Please try again
+									shortly or contact the store owner.
 								</p>
 							) : null}
 
@@ -248,7 +257,8 @@ export function CheckoutSheet({
 									canSubmit: s.canSubmit,
 									isSubmitting: s.isSubmitting,
 								})}
-								children={({ canSubmit, isSubmitting }) => (
+							>
+								{({ canSubmit, isSubmitting }) => (
 									<Button
 										type="submit"
 										disabled={
@@ -262,7 +272,7 @@ export function CheckoutSheet({
 										{isSubmitting ? "Sending…" : "Send order on WhatsApp"}
 									</Button>
 								)}
-							/>
+							</form.Subscribe>
 						</div>
 					</form>
 				</Dialog.Content>

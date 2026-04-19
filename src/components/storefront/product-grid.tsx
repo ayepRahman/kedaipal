@@ -14,7 +14,9 @@ interface ProductGridProps {
 
 export function ProductGrid({ retailerId, cart }: ProductGridProps) {
 	const products = useQuery(api.products.list, { retailerId });
-	const [openProduct, setOpenProduct] = useState<StorefrontProduct | null>(null);
+	const [openProduct, setOpenProduct] = useState<StorefrontProduct | null>(
+		null,
+	);
 	const [searchQuery, setSearchQuery] = useState("");
 
 	if (products === undefined) {

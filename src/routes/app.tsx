@@ -10,7 +10,7 @@ import {
 	useNavigate,
 } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
-import { Home, Package, ShoppingBag, Settings } from "lucide-react";
+import { Home, Package, Settings, ShoppingBag } from "lucide-react";
 import { useEffect } from "react";
 import { api } from "../../convex/_generated/api";
 import { useOrderToastNotifications } from "../hooks/useOrderToastNotifications";
@@ -60,8 +60,11 @@ function AppShell() {
 				</div>
 				<div className="flex flex-1 flex-col gap-4 pt-6">
 					<div className="h-7 w-28 animate-pulse rounded bg-muted" />
-					{Array.from({ length: 4 }).map((_, i) => (
-						<div key={i} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
+					{[0, 1, 2, 3].map((n) => (
+						<div
+							key={n}
+							className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3"
+						>
 							<div className="size-16 animate-pulse rounded-xl bg-muted" />
 							<div className="flex flex-1 flex-col gap-2">
 								<div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
@@ -104,8 +107,22 @@ function AppShell() {
 					>
 						{({ isActive }) => (
 							<>
-								<Home className={cn("size-5", isActive ? "fill-foreground stroke-foreground" : "stroke-muted-foreground")} />
-								<span className={cn("font-medium", isActive ? "text-foreground" : "text-muted-foreground")}>Home</span>
+								<Home
+									className={cn(
+										"size-5",
+										isActive
+											? "fill-foreground stroke-foreground"
+											: "stroke-muted-foreground",
+									)}
+								/>
+								<span
+									className={cn(
+										"font-medium",
+										isActive ? "text-foreground" : "text-muted-foreground",
+									)}
+								>
+									Home
+								</span>
 							</>
 						)}
 					</Link>
@@ -117,8 +134,22 @@ function AppShell() {
 					>
 						{({ isActive }) => (
 							<>
-								<Package className={cn("size-5", isActive ? "fill-foreground stroke-background" : "stroke-muted-foreground")} />
-								<span className={cn("font-medium", isActive ? "text-foreground" : "text-muted-foreground")}>Products</span>
+								<Package
+									className={cn(
+										"size-5",
+										isActive
+											? "fill-foreground stroke-background"
+											: "stroke-muted-foreground",
+									)}
+								/>
+								<span
+									className={cn(
+										"font-medium",
+										isActive ? "text-foreground" : "text-muted-foreground",
+									)}
+								>
+									Products
+								</span>
 							</>
 						)}
 					</Link>
@@ -131,14 +162,28 @@ function AppShell() {
 						{({ isActive }) => (
 							<>
 								<span className="relative">
-									<ShoppingBag className={cn("size-5", isActive ? "fill-foreground stroke-background" : "stroke-muted-foreground")} />
+									<ShoppingBag
+										className={cn(
+											"size-5",
+											isActive
+												? "fill-foreground stroke-background"
+												: "stroke-muted-foreground",
+										)}
+									/>
 									{actionableCount > 0 ? (
 										<span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[9px] font-bold leading-none text-white">
 											{actionableCount > 99 ? "99+" : actionableCount}
 										</span>
 									) : null}
 								</span>
-								<span className={cn("font-medium", isActive ? "text-foreground" : "text-muted-foreground")}>Orders</span>
+								<span
+									className={cn(
+										"font-medium",
+										isActive ? "text-foreground" : "text-muted-foreground",
+									)}
+								>
+									Orders
+								</span>
 							</>
 						)}
 					</Link>
@@ -151,8 +196,22 @@ function AppShell() {
 					>
 						{({ isActive }) => (
 							<>
-								<Settings className={cn("size-5", isActive ? "fill-foreground stroke-background" : "stroke-muted-foreground")} />
-								<span className={cn("font-medium", isActive ? "text-foreground" : "text-muted-foreground")}>Settings</span>
+								<Settings
+									className={cn(
+										"size-5",
+										isActive
+											? "fill-foreground stroke-background"
+											: "stroke-muted-foreground",
+									)}
+								/>
+								<span
+									className={cn(
+										"font-medium",
+										isActive ? "text-foreground" : "text-muted-foreground",
+									)}
+								>
+									Settings
+								</span>
 							</>
 						)}
 					</Link>

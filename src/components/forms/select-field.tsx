@@ -1,10 +1,5 @@
 import { cn } from "../../lib/utils";
-import {
-	Field,
-	FieldDescription,
-	FieldError,
-	FieldLabel,
-} from "../ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "../ui/field";
 import { useFieldContext } from "./form";
 
 interface SelectFieldOption {

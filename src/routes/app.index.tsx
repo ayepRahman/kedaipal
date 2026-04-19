@@ -6,12 +6,12 @@ import {
 	Clock,
 	CreditCard,
 	Globe,
+	type LucideIcon,
 	MessageCircle,
 	Package,
 	Phone,
 	QrCode,
 	Share2,
-	type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { api } from "../../convex/_generated/api";
@@ -47,8 +47,11 @@ function DashboardSkeleton() {
 
 			{/* Stats grid */}
 			<section className="grid grid-cols-2 gap-3">
-				{Array.from({ length: 4 }).map((_, i) => (
-					<div key={i} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+				{[0, 1, 2, 3].map((n) => (
+					<div
+						key={n}
+						className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4"
+					>
 						<Skeleton className="h-8 w-8 rounded-lg" />
 						<div className="flex flex-col gap-1.5">
 							<Skeleton className="h-7 w-10" />
@@ -65,8 +68,11 @@ function DashboardSkeleton() {
 					<Skeleton className="h-4 w-24" />
 					<Skeleton className="h-3 w-16" />
 				</div>
-				{Array.from({ length: 3 }).map((_, i) => (
-					<div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3">
+				{[0, 1, 2].map((n) => (
+					<div
+						key={n}
+						className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3"
+					>
 						<div className="flex flex-col gap-1.5">
 							<Skeleton className="h-4 w-20" />
 							<Skeleton className="h-3 w-32" />
@@ -95,7 +101,10 @@ function DashboardHome() {
 	const recentOrdersPage = useQuery(
 		api.orders.listByRetailer,
 		retailer
-			? { retailerId: retailer._id, paginationOpts: { numItems: 5, cursor: null } }
+			? {
+					retailerId: retailer._id,
+					paginationOpts: { numItems: 5, cursor: null },
+				}
 			: "skip",
 	);
 	const [copied, setCopied] = useState(false);
@@ -115,7 +124,7 @@ function DashboardHome() {
 		}
 	}
 
-	const hasWaPhone = Boolean(retailer.waPhone && retailer.waPhone.trim());
+	const hasWaPhone = Boolean(retailer.waPhone?.trim());
 	const productCount = products?.length ?? 0;
 	const activeProductCount = products?.filter((p) => p.active).length ?? 0;
 	const hasProduct = productCount > 0;
@@ -196,7 +205,8 @@ function DashboardHome() {
 							<span className="font-mono text-foreground">
 								kedaipal.com/{retailer.slug}
 							</span>
-							. Complete the steps below and you'll be accepting WhatsApp orders in minutes.
+							. Complete the steps below and you'll be accepting WhatsApp orders
+							in minutes.
 						</p>
 					</div>
 				</section>
@@ -227,7 +237,11 @@ function DashboardHome() {
 							{storefrontUrl}
 						</p>
 						<div className="mt-2 flex gap-2">
-							<Button onClick={copy} variant="secondary" className="h-11 flex-1">
+							<Button
+								onClick={copy}
+								variant="secondary"
+								className="h-11 flex-1"
+							>
 								{copied ? "Copied!" : "Copy link"}
 							</Button>
 							<Button asChild className="h-11 flex-1">
@@ -258,7 +272,9 @@ function DashboardHome() {
 			{/* How it works — only for brand-new users */}
 			{isNew ? (
 				<section className="flex flex-col gap-3">
-					<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">How Kedaipal works</h3>
+					<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+						How Kedaipal works
+					</h3>
 					<div className="grid grid-cols-3 gap-2">
 						{[
 							{ icon: Share2, label: "You share your store link" },
@@ -303,7 +319,8 @@ function DashboardHome() {
 					</div>
 					<ul className="flex flex-col gap-3">
 						{checklist.map((item, i) => {
-							const isNext = !item.done && checklist.slice(0, i).every((c) => c.done);
+							const isNext =
+								!item.done && checklist.slice(0, i).every((c) => c.done);
 							return (
 								<ChecklistRow key={item.key} item={item} expanded={isNext} />
 							);
@@ -401,7 +418,9 @@ function DashboardHome() {
 			{/* Sales channels teaser — hidden for brand-new users */}
 			{!isNew ? (
 				<section className="flex flex-col gap-3">
-					<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Sales channels</h3>
+					<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+						Sales channels
+					</h3>
 					<Link
 						to="/app/settings"
 						search={{ tab: "integrations" }}
@@ -444,7 +463,13 @@ type ChecklistItem = {
 	tab?: SettingsTab;
 };
 
-function ChecklistRow({ item, expanded }: { item: ChecklistItem; expanded: boolean }) {
+function ChecklistRow({
+	item,
+	expanded,
+}: {
+	item: ChecklistItem;
+	expanded: boolean;
+}) {
 	const Icon = item.icon;
 
 	if (item.done) {
@@ -473,7 +498,9 @@ function ChecklistRow({ item, expanded }: { item: ChecklistItem; expanded: boole
 							<span className="text-[10px] font-bold uppercase tracking-wider text-accent">
 								Step {item.step}
 							</span>
-							<span className="text-[10px] text-muted-foreground">{item.time}</span>
+							<span className="text-[10px] text-muted-foreground">
+								{item.time}
+							</span>
 						</div>
 						<p className="mt-0.5 text-sm font-semibold">{item.title}</p>
 						<p className="mt-1 text-xs text-muted-foreground leading-relaxed">
@@ -493,7 +520,11 @@ function ChecklistRow({ item, expanded }: { item: ChecklistItem; expanded: boole
 
 	return (
 		<li>
-			<Link to={item.to} search={item.tab ? { tab: item.tab } : undefined} className="block">
+			<Link
+				to={item.to}
+				search={item.tab ? { tab: item.tab } : undefined}
+				className="block"
+			>
 				<div className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 transition-colors hover:bg-accent/5">
 					<div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-border bg-background text-[10px] font-bold text-muted-foreground">
 						{item.step}

@@ -6,9 +6,9 @@ import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
 import { Button } from "../components/ui/button";
 import {
+	downloadProductCsvTemplate,
 	type ParsedProductsCsv,
 	PRODUCT_CSV_COLUMNS,
-	downloadProductCsvTemplate,
 	parseProductsCsv,
 } from "../lib/csv";
 import { convexErrorMessage, formatPrice } from "../lib/format";
@@ -49,9 +49,10 @@ function ImportProductsRoute() {
 	const [parsed, setParsed] = useState<ParsedProductsCsv | null>(null);
 	const [fileName, setFileName] = useState<string | null>(null);
 	const [importing, setImporting] = useState(false);
-	const [progress, setProgress] = useState<{ done: number; total: number } | null>(
-		null,
-	);
+	const [progress, setProgress] = useState<{
+		done: number;
+		total: number;
+	} | null>(null);
 
 	if (!retailer) return null;
 
@@ -122,7 +123,10 @@ function ImportProductsRoute() {
 
 			<section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
 				<div className="flex items-start gap-3">
-					<FileSpreadsheet className="size-5 shrink-0 text-accent" aria-hidden />
+					<FileSpreadsheet
+						className="size-5 shrink-0 text-accent"
+						aria-hidden
+					/>
 					<div className="flex flex-col gap-1">
 						<p className="font-medium">CSV format</p>
 						<p className="text-sm text-muted-foreground">
@@ -152,7 +156,9 @@ function ImportProductsRoute() {
 									className="border-t border-border align-top"
 								>
 									<td className="px-3 py-2 font-mono">{col.column}</td>
-									<td className="px-3 py-2 text-muted-foreground">{col.type}</td>
+									<td className="px-3 py-2 text-muted-foreground">
+										{col.type}
+									</td>
 									<td className="px-3 py-2">{col.required ? "✓" : ""}</td>
 									<td className="px-3 py-2 text-muted-foreground">
 										{col.notes}
@@ -165,7 +171,11 @@ function ImportProductsRoute() {
 
 				<p className="text-xs text-muted-foreground">
 					Prices use your store currency ({retailer.currency}). Change it in{" "}
-					<Link to="/app/settings" search={{ tab: "store" }} className="underline">
+					<Link
+						to="/app/settings"
+						search={{ tab: "store" }}
+						className="underline"
+					>
 						Settings
 					</Link>
 					. Images are not supported in CSV — add them per product after
@@ -185,9 +195,7 @@ function ImportProductsRoute() {
 			<section className="flex flex-col gap-3">
 				<label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card p-6 text-center hover:border-ring">
 					<Upload className="size-5 text-muted-foreground" aria-hidden />
-					<span className="font-medium">
-						{fileName ?? "Choose a CSV file"}
-					</span>
+					<span className="font-medium">{fileName ?? "Choose a CSV file"}</span>
 					<span className="text-xs text-muted-foreground">
 						Or drag &amp; drop — max 100 rows per import
 					</span>
@@ -216,7 +224,8 @@ function ImportProductsRoute() {
 
 			{progress ? (
 				<p className="rounded-lg bg-accent/10 px-3 py-2 text-sm text-accent-foreground">
-					Importing… {Math.min(progress.done, progress.total)} / {progress.total}
+					Importing… {Math.min(progress.done, progress.total)} /{" "}
+					{progress.total}
 				</p>
 			) : null}
 

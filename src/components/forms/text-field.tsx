@@ -1,10 +1,5 @@
 import { cn } from "../../lib/utils";
-import {
-	Field,
-	FieldDescription,
-	FieldError,
-	FieldLabel,
-} from "../ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "../ui/field";
 import { useFieldContext } from "./form";
 
 interface TextFieldProps {
@@ -56,7 +51,8 @@ export function TextField({
 					"focus:border-ring focus:ring-2 focus:ring-ring/50",
 					"disabled:cursor-not-allowed disabled:opacity-60",
 					mono && "font-mono",
-					isInvalid && "border-destructive focus:border-destructive focus:ring-destructive/30",
+					isInvalid &&
+						"border-destructive focus:border-destructive focus:ring-destructive/30",
 				)}
 			/>
 			{description ? <FieldDescription>{description}</FieldDescription> : null}

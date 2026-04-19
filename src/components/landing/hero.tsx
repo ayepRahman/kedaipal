@@ -1,9 +1,9 @@
-import { Link } from "@tanstack/react-router";
-import { ArrowRight, Bell, Sparkles, Store } from "lucide-react";
 import { useAuth } from "@clerk/tanstack-react-start";
+import { Link } from "@tanstack/react-router";
 import { motion, useReducedMotion } from "framer-motion";
-import { Button } from "../ui/button";
+import { ArrowRight, Bell, Sparkles, Store } from "lucide-react";
 import { m } from "../../paraglide/messages";
+import { Button } from "../ui/button";
 
 function PhoneMockup() {
 	const shouldReduceMotion = useReducedMotion();
@@ -35,7 +35,9 @@ function PhoneMockupContent() {
 						</div>
 						<div className="flex-1">
 							<p className="text-sm font-semibold">{m.phone_store_name()}</p>
-							<p className="text-[10px] text-white/80">{m.phone_store_status()}</p>
+							<p className="text-[10px] text-white/80">
+								{m.phone_store_status()}
+							</p>
 						</div>
 					</div>
 
@@ -131,7 +133,12 @@ export function Hero() {
 								</Link>
 							</Button>
 						)}
-						<Button asChild variant="outline" size="lg" className="h-12 px-6 text-base">
+						<Button
+							asChild
+							variant="outline"
+							size="lg"
+							className="h-12 px-6 text-base"
+						>
 							<a href="#how">{m.hero_cta_secondary()}</a>
 						</Button>
 					</div>

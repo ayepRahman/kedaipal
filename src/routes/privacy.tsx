@@ -56,12 +56,11 @@ function PrivacyPage() {
 				<div className="mt-10 space-y-8 text-base leading-relaxed text-foreground/90">
 					<section className="space-y-3">
 						<p>
-							This Privacy Policy explains how Kedaipal ("Kedaipal",
-							"we", "our", or "us") collects, uses, and shares
-							information when you use our services, including the
-							retailer dashboard, hosted storefronts, and WhatsApp
-							ordering flow (collectively, the "Service"). Kedaipal
-							is currently in beta.
+							This Privacy Policy explains how Kedaipal ("Kedaipal", "we",
+							"our", or "us") collects, uses, and shares information when you
+							use our services, including the retailer dashboard, hosted
+							storefronts, and WhatsApp ordering flow (collectively, the
+							"Service"). Kedaipal is currently in beta.
 						</p>
 					</section>
 
@@ -70,35 +69,31 @@ function PrivacyPage() {
 							1. Information We Collect
 						</h2>
 						<p>
-							<strong>Retailer account information.</strong> When a
-							retailer signs up, we collect name, email address,
-							authentication identifiers (via Clerk), store name,
-							store slug, WhatsApp number, and profile preferences.
+							<strong>Retailer account information.</strong> When a retailer
+							signs up, we collect name, email address, authentication
+							identifiers (via Clerk), store name, store slug, WhatsApp number,
+							and profile preferences.
 						</p>
 						<p>
-							<strong>Catalog and order data.</strong> We store
-							product information, inventory, and orders that
-							retailers create or that are placed through our
-							storefronts.
+							<strong>Catalog and order data.</strong> We store product
+							information, inventory, and orders that retailers create or that
+							are placed through our storefronts.
 						</p>
 						<p>
-							<strong>Shopper information.</strong> When a shopper
-							places an order, we collect the items ordered, the
-							shopper's WhatsApp number (required for order
-							confirmation), and any notes they include. We do not
-							require shoppers to create an account.
+							<strong>Shopper information.</strong> When a shopper places an
+							order, we collect the items ordered, the shopper's WhatsApp number
+							(required for order confirmation), and any notes they include. We
+							do not require shoppers to create an account.
 						</p>
 						<p>
-							<strong>Messaging data.</strong> When messages are
-							exchanged with the Kedaipal WhatsApp number, we
-							process the message contents and associated metadata
-							to deliver the ordering flow.
+							<strong>Messaging data.</strong> When messages are exchanged with
+							the Kedaipal WhatsApp number, we process the message contents and
+							associated metadata to deliver the ordering flow.
 						</p>
 						<p>
-							<strong>Technical data.</strong> We collect basic
-							technical information such as IP address, browser
-							type, device type, and log data for security and
-							debugging.
+							<strong>Technical data.</strong> We collect basic technical
+							information such as IP address, browser type, device type, and log
+							data for security and debugging.
 						</p>
 					</section>
 
@@ -108,20 +103,17 @@ function PrivacyPage() {
 						</h2>
 						<ul className="list-disc space-y-2 pl-6">
 							<li>To operate and maintain the Service.</li>
+							<li>To authenticate retailers and protect accounts.</li>
 							<li>
-								To authenticate retailers and protect accounts.
+								To process orders and send order confirmations and status
+								updates via WhatsApp.
 							</li>
 							<li>
-								To process orders and send order confirmations
-								and status updates via WhatsApp.
+								To debug issues, monitor performance, and improve the Service.
 							</li>
 							<li>
-								To debug issues, monitor performance, and improve
-								the Service.
-							</li>
-							<li>
-								To communicate with retailers about the Service
-								and beta changes.
+								To communicate with retailers about the Service and beta
+								changes.
 							</li>
 							<li>To comply with legal obligations.</li>
 						</ul>
@@ -132,31 +124,27 @@ function PrivacyPage() {
 							3. How We Share Information
 						</h2>
 						<p>
-							We do not sell personal information. We share
-							information only with service providers that help us
-							run the Service, including:
+							We do not sell personal information. We share information only
+							with service providers that help us run the Service, including:
 						</p>
 						<ul className="list-disc space-y-2 pl-6">
 							<li>
-								<strong>Meta Platforms (WhatsApp Cloud API)</strong>{" "}
-								— to send and receive WhatsApp messages.
+								<strong>Meta Platforms (WhatsApp Cloud API)</strong> — to send
+								and receive WhatsApp messages.
 							</li>
 							<li>
-								<strong>Convex</strong> — database and backend
-								functions.
+								<strong>Convex</strong> — database and backend functions.
 							</li>
 							<li>
 								<strong>Clerk</strong> — retailer authentication.
 							</li>
 							<li>
-								<strong>Cloudflare</strong> — hosting, CDN, and
-								DDoS protection.
+								<strong>Cloudflare</strong> — hosting, CDN, and DDoS protection.
 							</li>
 						</ul>
 						<p>
-							We may also disclose information if required by law,
-							or to protect the rights, safety, or property of
-							Kedaipal, our users, or others.
+							We may also disclose information if required by law, or to protect
+							the rights, safety, or property of Kedaipal, our users, or others.
 						</p>
 					</section>
 
@@ -165,11 +153,10 @@ function PrivacyPage() {
 							4. Cookies and Similar Technologies
 						</h2>
 						<p>
-							We use cookies and similar technologies that are
-							strictly necessary to operate the Service, including
-							authenticating retailer sessions and remembering
-							cart contents on the storefront. We do not use
-							advertising or cross-site tracking cookies.
+							We use cookies and similar technologies that are strictly
+							necessary to operate the Service, including authenticating
+							retailer sessions and remembering cart contents on the storefront.
+							We do not use advertising or cross-site tracking cookies.
 						</p>
 					</section>
 
@@ -178,11 +165,10 @@ function PrivacyPage() {
 							5. Data Retention
 						</h2>
 						<p>
-							We retain retailer account data for as long as the
-							account is active. Order and messaging data is
-							retained as long as reasonably necessary to provide
-							the Service and meet legal obligations. You may
-							request deletion of your account at any time.
+							We retain retailer account data for as long as the account is
+							active. Order and messaging data is retained as long as reasonably
+							necessary to provide the Service and meet legal obligations. You
+							may request deletion of your account at any time.
 						</p>
 					</section>
 
@@ -191,10 +177,9 @@ function PrivacyPage() {
 							6. Your Rights
 						</h2>
 						<p>
-							Subject to applicable law, you may have the right to
-							access, correct, delete, or export personal
-							information we hold about you, and to object to or
-							restrict certain processing. To exercise these
+							Subject to applicable law, you may have the right to access,
+							correct, delete, or export personal information we hold about you,
+							and to object to or restrict certain processing. To exercise these
 							rights, please contact us through the Service.
 						</p>
 					</section>
@@ -204,10 +189,9 @@ function PrivacyPage() {
 							7. Security
 						</h2>
 						<p>
-							We use reasonable administrative, technical, and
-							physical safeguards to protect information. No
-							method of transmission or storage is 100% secure,
-							and we cannot guarantee absolute security.
+							We use reasonable administrative, technical, and physical
+							safeguards to protect information. No method of transmission or
+							storage is 100% secure, and we cannot guarantee absolute security.
 						</p>
 					</section>
 
@@ -216,9 +200,8 @@ function PrivacyPage() {
 							8. Children's Privacy
 						</h2>
 						<p>
-							The Service is not directed to children under 13,
-							and we do not knowingly collect personal information
-							from children under 13.
+							The Service is not directed to children under 13, and we do not
+							knowingly collect personal information from children under 13.
 						</p>
 					</section>
 
@@ -227,10 +210,9 @@ function PrivacyPage() {
 							9. International Transfers
 						</h2>
 						<p>
-							Kedaipal operates from Malaysia and our service
-							providers may process data in other countries. By
-							using the Service, you consent to such transfers
-							where permitted by law.
+							Kedaipal operates from Malaysia and our service providers may
+							process data in other countries. By using the Service, you consent
+							to such transfers where permitted by law.
 						</p>
 					</section>
 
@@ -239,11 +221,10 @@ function PrivacyPage() {
 							10. Changes to This Policy
 						</h2>
 						<p>
-							We may update this Privacy Policy from time to time.
-							We will update the "Last updated" date at the top of
-							this page when we do. Continued use of the Service
-							after changes take effect means you accept the
-							updated policy.
+							We may update this Privacy Policy from time to time. We will
+							update the "Last updated" date at the top of this page when we do.
+							Continued use of the Service after changes take effect means you
+							accept the updated policy.
 						</p>
 					</section>
 
@@ -252,8 +233,8 @@ function PrivacyPage() {
 							11. Contact
 						</h2>
 						<p>
-							If you have questions about this Privacy Policy,
-							please contact Kedaipal through our website.
+							If you have questions about this Privacy Policy, please contact
+							Kedaipal through our website.
 						</p>
 					</section>
 				</div>

@@ -69,7 +69,9 @@ export function ProductDetailSheet({
 								</div>
 							)}
 
-							<h2 className="text-xl font-bold leading-tight">{product.name}</h2>
+							<h2 className="text-xl font-bold leading-tight">
+								{product.name}
+							</h2>
 							<p className="mt-1 text-2xl font-bold">
 								{formatPrice(product.price, product.currency)}
 							</p>

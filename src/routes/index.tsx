@@ -1,18 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { Nav } from "../components/landing/nav";
-import { Hero } from "../components/landing/hero";
-import { ProblemStrip } from "../components/landing/problem-strip";
-import { HowItWorks } from "../components/landing/how-it-works";
-import { SetupStrip } from "../components/landing/setup-strip";
-import { FeatureGrid } from "../components/landing/feature-grid";
-import { SocialProof } from "../components/landing/social-proof";
-import { PricingTeaser } from "../components/landing/pricing-teaser";
 import { Faq } from "../components/landing/faq";
+import { FeatureGrid } from "../components/landing/feature-grid";
 import { FinalCta } from "../components/landing/final-cta";
 import { Footer } from "../components/landing/footer";
+import { Hero } from "../components/landing/hero";
+import { HowItWorks } from "../components/landing/how-it-works";
+import { Nav } from "../components/landing/nav";
+import { PricingTeaser } from "../components/landing/pricing-teaser";
+import { ProblemStrip } from "../components/landing/problem-strip";
+import { SetupStrip } from "../components/landing/setup-strip";
 
-const SEO_TITLE = "Kedaipal — WhatsApp Order Hub for Small Retailers in Malaysia";
+const SEO_TITLE =
+	"Kedaipal — WhatsApp Order Hub for Small Retailers in Malaysia";
 const SEO_DESC =
 	"Turn WhatsApp into your order hub. Kedaipal lets small retailers launch a storefront, manage orders, and track inventory — free during beta, no code needed.";
 const SITE_URL = "https://kedaipal.com";

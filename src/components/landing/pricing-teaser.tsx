@@ -1,8 +1,8 @@
+import { useAuth } from "@clerk/tanstack-react-start";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Sparkles } from "lucide-react";
-import { useAuth } from "@clerk/tanstack-react-start";
-import { Button } from "../ui/button";
 import { m } from "../../paraglide/messages";
+import { Button } from "../ui/button";
 
 export function PricingTeaser() {
 	const { isSignedIn } = useAuth();
@@ -35,7 +35,10 @@ export function PricingTeaser() {
 					</p>
 					<div className="mx-auto mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2">
 						{includes.map((item) => (
-							<div key={item} className="flex items-center gap-1.5 text-sm text-foreground">
+							<div
+								key={item}
+								className="flex items-center gap-1.5 text-sm text-foreground"
+							>
 								<Check className="size-4 text-accent" />
 								{item}
 							</div>

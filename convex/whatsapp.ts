@@ -274,7 +274,15 @@ export const handleInbound = internalAction({
 				internal.whatsapp.getOrderForRetailerAlert,
 				{ orderId: result.orderId },
 			);
-			if (alertMeta?.retailerWaPhone) {
+			if (!alertMeta) {
+				console.error(
+					`WA retailer confirmation alert skipped: no order meta (orderId=${result.orderId})`,
+				);
+			} else if (!alertMeta.retailerWaPhone) {
+				console.warn(
+					`WA retailer confirmation alert skipped: retailer waPhone is empty (orderId=${result.orderId}, shortId=${alertMeta.shortId})`,
+				);
+			} else {
 				const totalFormatted = `${alertMeta.currency} ${(alertMeta.total / 100).toFixed(2)}`;
 				const alertBody = renderRetailerAlert(alertMeta.locale, "orderConfirmed", {
 					shortId: alertMeta.shortId,
@@ -286,7 +294,11 @@ export const handleInbound = internalAction({
 				try {
 					await sendText(alertMeta.retailerWaPhone, alertBody);
 				} catch (err) {
-					console.error("WA retailer confirmation alert failed", err);
+					console.error(
+						`WA retailer confirmation alert failed (shortId=${alertMeta.shortId}, to=${alertMeta.retailerWaPhone}): ${
+							err instanceof Error ? err.message : String(err)
+						}`,
+					);
 				}
 			}
 		}
@@ -386,12 +398,38 @@ export const getOrderForRetailerAlert = internalQuery({
 export const notifyRetailerOrderAlert = internalAction({
 	args: { orderId: v.id("orders") },
 	handler: async (ctx, { orderId }): Promise<void> => {
-		const meta = await ctx.runQuery(
-			internal.whatsapp.getOrderForRetailerAlert,
-			{ orderId },
-		);
-		if (!meta) return;
-		if (!meta.retailerWaPhone) return;
+		let meta: {
+			shortId: string;
+			status: Doc<"orders">["status"];
+			itemCount: number;
+			total: number;
+			currency: string;
+			customerName: string;
+			deliveryMethod: DeliveryMethod;
+			retailerWaPhone: string | undefined;
+			locale: Locale;
+		} | null = null;
+		try {
+			meta = await ctx.runQuery(
+				internal.whatsapp.getOrderForRetailerAlert,
+				{ orderId },
+			);
+		} catch (err) {
+			console.error("WA retailer notify lookup failed", err);
+			return;
+		}
+		if (!meta) {
+			console.error(
+				`WA retailer alert skipped: no order meta (orderId=${orderId})`,
+			);
+			return;
+		}
+		if (!meta.retailerWaPhone) {
+			console.warn(
+				`WA retailer alert skipped: retailer waPhone is empty (orderId=${orderId}, shortId=${meta.shortId})`,
+			);
+			return;
+		}
 
 		const alertKey: RetailerAlertKey =
 			meta.status === "pending" ? "newOrder" : "orderConfirmed";
@@ -408,10 +446,72 @@ export const notifyRetailerOrderAlert = internalAction({
 		try {
 			await sendText(meta.retailerWaPhone, body);
 		} catch (err) {
-			console.error("WA retailer alert failed", err);
+			console.error(
+				`WA retailer alert failed (shortId=${meta.shortId}, to=${meta.retailerWaPhone}): ${
+					err instanceof Error ? err.message : String(err)
+				}`,
+			);
 		}
 	},
 });
 
 // Re-export validator for tests / other modules.
 export { statusValidator };
+
+// ---------------------------------------------------------------------------
+// Diagnostic helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * One-shot diagnostic: send a canned WhatsApp message to a retailer's saved
+ * waPhone so we can verify Meta Cloud API delivery end-to-end independently of
+ * the order flow. Invoke with:
+ *   npx convex run whatsapp:sendTestRetailerAlert '{"retailerId":"..."}'
+ */
+export const sendTestRetailerAlert = internalAction({
+	args: { retailerId: v.id("retailers") },
+	handler: async (ctx, { retailerId }): Promise<void> => {
+		const retailer = await ctx.runQuery(
+			internal.whatsapp.getRetailerForDiagnostic,
+			{ retailerId },
+		);
+		if (!retailer) {
+			console.error(`Diagnostic skipped: retailer not found (id=${retailerId})`);
+			return;
+		}
+		if (!retailer.waPhone) {
+			console.error(
+				`Diagnostic skipped: retailer waPhone is empty (id=${retailerId}, storeName=${retailer.storeName})`,
+			);
+			return;
+		}
+		try {
+			await sendText(
+				retailer.waPhone,
+				`Kedaipal test alert for ${retailer.storeName}. If you see this, WhatsApp delivery is working.`,
+			);
+			console.log(
+				`Diagnostic alert sent (storeName=${retailer.storeName}, to=${retailer.waPhone})`,
+			);
+		} catch (err) {
+			console.error(
+				`Diagnostic alert failed (storeName=${retailer.storeName}, to=${retailer.waPhone}): ${
+					err instanceof Error ? err.message : String(err)
+				}`,
+			);
+			throw err;
+		}
+	},
+});
+
+export const getRetailerForDiagnostic = internalQuery({
+	args: { retailerId: v.id("retailers") },
+	handler: async (
+		ctx,
+		{ retailerId },
+	): Promise<{ waPhone: string | undefined; storeName: string } | null> => {
+		const retailer = await ctx.db.get(retailerId);
+		if (!retailer) return null;
+		return { waPhone: retailer.waPhone, storeName: retailer.storeName };
+	},
+});

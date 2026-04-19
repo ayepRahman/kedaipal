@@ -1,10 +1,10 @@
-import { useMutation } from "convex/react";
 import { Link } from "@tanstack/react-router";
+import { useMutation } from "convex/react";
 import { Info } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { api } from "../../../convex/_generated/api";
-import { productFormSchema } from "../../lib/schemas";
 import { convexErrorMessage } from "../../lib/format";
+import { productFormSchema } from "../../lib/schemas";
 import { Button } from "../ui/button";
 import { useAppForm } from "./form";
 
@@ -118,25 +118,26 @@ export function ProductForm({
 
 	return (
 		<form onSubmit={handleSubmit} className="flex flex-col gap-4">
-			<form.AppField
-				name="name"
-				children={(field) => (
-					<field.TextField label="Name" placeholder="Tent — 4 person" required />
+			<form.AppField name="name">
+				{(field) => (
+					<field.TextField
+						label="Name"
+						placeholder="Tent — 4 person"
+						required
+					/>
 				)}
-			/>
-			<form.AppField
-				name="description"
-				children={(field) => (
+			</form.AppField>
+			<form.AppField name="description">
+				{(field) => (
 					<field.TextareaField
 						label="Description"
 						placeholder="Optional details shoppers should see"
 					/>
 				)}
-			/>
+			</form.AppField>
 			<div className="flex flex-col gap-1">
-				<form.AppField
-					name="price"
-					children={(field) => (
+				<form.AppField name="price">
+					{(field) => (
 						<field.TextField
 							label={`Price (${currency})`}
 							placeholder="120.00"
@@ -146,7 +147,7 @@ export function ProductForm({
 							description="Decimal number, e.g. 120 or 120.50."
 						/>
 					)}
-				/>
+				</form.AppField>
 				<Link
 					to="/app/settings"
 					search={{ tab: "store" }}
@@ -156,9 +157,8 @@ export function ProductForm({
 					Currency is set per store — change it in Settings.
 				</Link>
 			</div>
-			<form.AppField
-				name="stock"
-				children={(field) => (
+			<form.AppField name="stock">
+				{(field) => (
 					<field.TextField
 						label="Stock"
 						placeholder="10"
@@ -167,11 +167,14 @@ export function ProductForm({
 						required
 					/>
 				)}
-			/>
+			</form.AppField>
 
 			<div className="flex flex-col gap-2">
 				<span className="text-sm font-medium">
-					Images <span className="text-muted-foreground">({images.length}/{MAX_IMAGES})</span>
+					Images{" "}
+					<span className="text-muted-foreground">
+						({images.length}/{MAX_IMAGES})
+					</span>
 				</span>
 				<div className="grid grid-cols-3 gap-2">
 					{images.map((img) => (
@@ -180,11 +183,7 @@ export function ProductForm({
 							className="relative aspect-square overflow-hidden rounded-xl bg-muted"
 						>
 							{img.url ? (
-								<img
-									src={img.url}
-									alt=""
-									className="size-full object-cover"
-								/>
+								<img src={img.url} alt="" className="size-full object-cover" />
 							) : null}
 							<button
 								type="button"
@@ -213,8 +212,12 @@ export function ProductForm({
 			</div>
 
 			<form.Subscribe
-				selector={(s) => ({ canSubmit: s.canSubmit, isSubmitting: s.isSubmitting })}
-				children={({ canSubmit, isSubmitting }) => (
+				selector={(s) => ({
+					canSubmit: s.canSubmit,
+					isSubmitting: s.isSubmitting,
+				})}
+			>
+				{({ canSubmit, isSubmitting }) => (
 					<Button
 						type="submit"
 						disabled={!canSubmit || isSubmitting || uploading}
@@ -223,7 +226,7 @@ export function ProductForm({
 						{isSubmitting ? "Saving…" : submitLabel}
 					</Button>
 				)}
-			/>
+			</form.Subscribe>
 
 			{serverError ? (
 				<p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">

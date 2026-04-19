@@ -13,7 +13,12 @@ interface CartBarProps {
 	checkoutPhone: string | undefined;
 }
 
-export function CartBar({ cart, retailerId, storeName, checkoutPhone }: CartBarProps) {
+export function CartBar({
+	cart,
+	retailerId,
+	storeName,
+	checkoutPhone,
+}: CartBarProps) {
 	const [checkoutOpen, setCheckoutOpen] = useState(false);
 	const empty = cart.itemCount === 0;
 

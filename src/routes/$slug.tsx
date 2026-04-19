@@ -4,8 +4,8 @@ import { api } from "../../convex/_generated/api";
 import { CartBar } from "../components/storefront/cart-bar";
 import { ProductGrid } from "../components/storefront/product-grid";
 import { Skeleton } from "../components/ui/skeleton";
-import { getConvexHttpClient, SITE_URL } from "../lib/convex-server";
 import { useCart } from "../hooks/useCart";
+import { getConvexHttpClient, SITE_URL } from "../lib/convex-server";
 
 interface StorefrontLoaderData {
 	storeName: string;
@@ -62,7 +62,14 @@ export const Route = createFileRoute("/$slug")({
 	},
 	head: ({ loaderData }) => {
 		if (!loaderData) return {};
-		const { storeName, description, canonicalUrl, ogImageUrl, checkoutPhone, locale } = loaderData;
+		const {
+			storeName,
+			description,
+			canonicalUrl,
+			ogImageUrl,
+			checkoutPhone,
+			locale,
+		} = loaderData;
 		const title = `${storeName} — Order on WhatsApp | Kedaipal`;
 		const ogLocale = locale === "ms" ? "ms_MY" : "en_MY";
 
@@ -78,7 +85,10 @@ export const Route = createFileRoute("/$slug")({
 			{ property: "og:description", content: description },
 			{ property: "og:url", content: canonicalUrl },
 			// Twitter
-			{ name: "twitter:card", content: ogImageUrl ? "summary_large_image" : "summary" },
+			{
+				name: "twitter:card",
+				content: ogImageUrl ? "summary_large_image" : "summary",
+			},
 			{ name: "twitter:title", content: title },
 			{ name: "twitter:description", content: description },
 		];
@@ -141,8 +151,11 @@ function StorefrontSkeleton() {
 			</header>
 			<section className="mt-4 flex flex-col gap-4 px-5">
 				<div className="grid grid-cols-2 gap-3">
-					{Array.from({ length: 4 }).map((_, i) => (
-						<div key={i} className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-3">
+					{[0, 1, 2, 3].map((n) => (
+						<div
+							key={n}
+							className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-3"
+						>
 							<Skeleton className="aspect-square w-full rounded-xl" />
 							<Skeleton className="h-4 w-3/4" />
 							<Skeleton className="h-4 w-1/2" />
@@ -171,11 +184,7 @@ function StorefrontRoute() {
 	return (
 		<div className="mx-auto flex min-h-dvh w-full max-w-md flex-col pb-32">
 			<header className="flex flex-col gap-4 bg-gradient-to-b from-accent/10 to-background px-5 pb-6 pt-10">
-				<img
-					src="/logo-3.svg"
-					alt="Kedaipal"
-					className="h-5 w-auto"
-				/>
+				<img src="/logo-3.svg" alt="Kedaipal" className="h-5 w-auto" />
 				<div className="flex items-center gap-4">
 					{retailer.logoUrl ? (
 						<img

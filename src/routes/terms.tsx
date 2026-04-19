@@ -56,13 +56,11 @@ function TermsPage() {
 				<div className="mt-10 space-y-8 text-base leading-relaxed text-foreground/90">
 					<section className="space-y-3">
 						<p>
-							These Terms &amp; Conditions ("Terms") govern your
-							access to and use of Kedaipal ("Kedaipal", "we",
-							"our", or "us"), including our retailer dashboard,
-							hosted storefronts, and WhatsApp ordering flow
-							(collectively, the "Service"). By using the Service,
-							you agree to these Terms. If you do not agree, do
-							not use the Service.
+							These Terms &amp; Conditions ("Terms") govern your access to and
+							use of Kedaipal ("Kedaipal", "we", "our", or "us"), including our
+							retailer dashboard, hosted storefronts, and WhatsApp ordering flow
+							(collectively, the "Service"). By using the Service, you agree to
+							these Terms. If you do not agree, do not use the Service.
 						</p>
 					</section>
 
@@ -71,12 +69,10 @@ function TermsPage() {
 							1. Beta Service
 						</h2>
 						<p>
-							The Service is currently provided in beta. It is
-							offered "as is" and may change, become unavailable,
-							or be discontinued at any time without notice.
-							Features, pricing, and functionality are subject to
-							change. No service level agreement applies during
-							beta.
+							The Service is currently provided in beta. It is offered "as is"
+							and may change, become unavailable, or be discontinued at any time
+							without notice. Features, pricing, and functionality are subject
+							to change. No service level agreement applies during beta.
 						</p>
 					</section>
 
@@ -85,10 +81,9 @@ function TermsPage() {
 							2. Accounts
 						</h2>
 						<p>
-							Retailers must create an account to use the
-							dashboard. You are responsible for keeping your
-							credentials secure and for all activity that occurs
-							under your account. You must provide accurate
+							Retailers must create an account to use the dashboard. You are
+							responsible for keeping your credentials secure and for all
+							activity that occurs under your account. You must provide accurate
 							information and promptly update it when it changes.
 						</p>
 					</section>
@@ -99,26 +94,23 @@ function TermsPage() {
 						</h2>
 						<ul className="list-disc space-y-2 pl-6">
 							<li>
-								Provide accurate product descriptions, pricing,
-								inventory, and fulfillment information.
+								Provide accurate product descriptions, pricing, inventory, and
+								fulfillment information.
 							</li>
 							<li>
-								Only sell goods and services that are lawful in
-								the retailer's jurisdiction and the jurisdictions
-								of its customers.
+								Only sell goods and services that are lawful in the retailer's
+								jurisdiction and the jurisdictions of its customers.
 							</li>
 							<li>
-								Respond to shopper orders and inquiries in a
-								timely manner.
+								Respond to shopper orders and inquiries in a timely manner.
 							</li>
 							<li>
-								Comply with all applicable laws, including
-								consumer protection, tax, and WhatsApp Business
-								policies.
+								Comply with all applicable laws, including consumer protection,
+								tax, and WhatsApp Business policies.
 							</li>
 							<li>
-								Handle shopper personal data in accordance with
-								applicable privacy laws.
+								Handle shopper personal data in accordance with applicable
+								privacy laws.
 							</li>
 						</ul>
 					</section>
@@ -128,12 +120,11 @@ function TermsPage() {
 							4. Shoppers and Orders
 						</h2>
 						<p>
-							Kedaipal provides tools that help retailers list
-							products and receive orders via WhatsApp. Kedaipal
-							is not a party to the transaction between retailers
-							and shoppers. Orders, payments, fulfillment,
-							returns, and any related disputes are solely
-							between the retailer and the shopper.
+							Kedaipal provides tools that help retailers list products and
+							receive orders via WhatsApp. Kedaipal is not a party to the
+							transaction between retailers and shoppers. Orders, payments,
+							fulfillment, returns, and any related disputes are solely between
+							the retailer and the shopper.
 						</p>
 					</section>
 
@@ -142,13 +133,11 @@ function TermsPage() {
 							5. WhatsApp and Third-Party Services
 						</h2>
 						<p>
-							The Service uses the WhatsApp Business Platform
-							provided by Meta and other third-party providers
-							(including Convex, Clerk, and Cloudflare). Your use
-							of the Service is also subject to the terms and
-							policies of those providers. Kedaipal is not
-							responsible for the availability or performance of
-							third-party services.
+							The Service uses the WhatsApp Business Platform provided by Meta
+							and other third-party providers (including Convex, Clerk, and
+							Cloudflare). Your use of the Service is also subject to the terms
+							and policies of those providers. Kedaipal is not responsible for
+							the availability or performance of third-party services.
 						</p>
 					</section>
 
@@ -159,25 +148,24 @@ function TermsPage() {
 						<p>You agree not to:</p>
 						<ul className="list-disc space-y-2 pl-6">
 							<li>
-								Use the Service for any unlawful, fraudulent, or
-								harmful purpose.
+								Use the Service for any unlawful, fraudulent, or harmful
+								purpose.
 							</li>
 							<li>
-								Sell illegal, counterfeit, or restricted goods
-								through the Service.
+								Sell illegal, counterfeit, or restricted goods through the
+								Service.
 							</li>
 							<li>
-								Send spam, bulk unsolicited messages, or content
-								that violates WhatsApp Business policies.
+								Send spam, bulk unsolicited messages, or content that violates
+								WhatsApp Business policies.
 							</li>
 							<li>
-								Attempt to gain unauthorized access to the
-								Service, interfere with its operation, or
-								reverse engineer it.
+								Attempt to gain unauthorized access to the Service, interfere
+								with its operation, or reverse engineer it.
 							</li>
 							<li>
-								Upload content that infringes intellectual
-								property or privacy rights of others.
+								Upload content that infringes intellectual property or privacy
+								rights of others.
 							</li>
 						</ul>
 					</section>
@@ -187,11 +175,10 @@ function TermsPage() {
 							7. Intellectual Property
 						</h2>
 						<p>
-							Kedaipal and its licensors retain all rights to the
-							Service, including software, design, and branding.
-							Retailers retain ownership of the product content
-							they upload and grant Kedaipal a limited license to
-							host and display that content as necessary to
+							Kedaipal and its licensors retain all rights to the Service,
+							including software, design, and branding. Retailers retain
+							ownership of the product content they upload and grant Kedaipal a
+							limited license to host and display that content as necessary to
 							operate the Service.
 						</p>
 					</section>
@@ -201,12 +188,11 @@ function TermsPage() {
 							8. Disclaimers
 						</h2>
 						<p>
-							THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE"
-							WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED,
-							INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR
-							A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. KEDAIPAL
-							DOES NOT WARRANT THAT THE SERVICE WILL BE
-							UNINTERRUPTED, ERROR-FREE, OR SECURE.
+							THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT
+							WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES
+							OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+							NON-INFRINGEMENT. KEDAIPAL DOES NOT WARRANT THAT THE SERVICE WILL
+							BE UNINTERRUPTED, ERROR-FREE, OR SECURE.
 						</p>
 					</section>
 
@@ -215,11 +201,10 @@ function TermsPage() {
 							9. Limitation of Liability
 						</h2>
 						<p>
-							TO THE MAXIMUM EXTENT PERMITTED BY LAW, KEDAIPAL
-							WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL,
-							SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR
-							ANY LOSS OF PROFITS, REVENUE, DATA, OR GOODWILL,
-							ARISING FROM OR RELATED TO YOUR USE OF THE SERVICE.
+							TO THE MAXIMUM EXTENT PERMITTED BY LAW, KEDAIPAL WILL NOT BE
+							LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR
+							PUNITIVE DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, DATA, OR
+							GOODWILL, ARISING FROM OR RELATED TO YOUR USE OF THE SERVICE.
 						</p>
 					</section>
 
@@ -228,11 +213,10 @@ function TermsPage() {
 							10. Termination
 						</h2>
 						<p>
-							You may stop using the Service at any time. We may
-							suspend or terminate access to the Service at our
-							discretion, including for violation of these Terms.
-							Sections that by their nature should survive
-							termination will continue to apply.
+							You may stop using the Service at any time. We may suspend or
+							terminate access to the Service at our discretion, including for
+							violation of these Terms. Sections that by their nature should
+							survive termination will continue to apply.
 						</p>
 					</section>
 
@@ -241,10 +225,9 @@ function TermsPage() {
 							11. Governing Law
 						</h2>
 						<p>
-							These Terms are governed by the laws of Malaysia,
-							without regard to conflict of law principles. Any
-							disputes will be subject to the exclusive
-							jurisdiction of the courts of Malaysia.
+							These Terms are governed by the laws of Malaysia, without regard
+							to conflict of law principles. Any disputes will be subject to the
+							exclusive jurisdiction of the courts of Malaysia.
 						</p>
 					</section>
 
@@ -253,10 +236,9 @@ function TermsPage() {
 							12. Changes to These Terms
 						</h2>
 						<p>
-							We may update these Terms from time to time. The
-							"Last updated" date at the top of this page will
-							reflect the most recent version. Continued use of
-							the Service after changes take effect means you
+							We may update these Terms from time to time. The "Last updated"
+							date at the top of this page will reflect the most recent version.
+							Continued use of the Service after changes take effect means you
 							accept the updated Terms.
 						</p>
 					</section>
@@ -266,8 +248,8 @@ function TermsPage() {
 							13. Contact
 						</h2>
 						<p>
-							If you have questions about these Terms, please
-							contact Kedaipal through our website.
+							If you have questions about these Terms, please contact Kedaipal
+							through our website.
 						</p>
 					</section>
 				</div>
