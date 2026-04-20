@@ -11,6 +11,7 @@ import { useAppForm } from "./form";
 const MAX_IMAGES = 5;
 
 export interface ProductFormSubmitValues {
+	sku?: string;
 	name: string;
 	description?: string;
 	price: number;
@@ -20,6 +21,7 @@ export interface ProductFormSubmitValues {
 
 interface ProductFormProps {
 	initialValues?: {
+		sku?: string;
 		name?: string;
 		description?: string;
 		price?: number; // minor units
@@ -51,6 +53,7 @@ export function ProductForm({
 
 	const form = useAppForm({
 		defaultValues: {
+			sku: initialValues?.sku ?? "",
 			name: initialValues?.name ?? "",
 			description: initialValues?.description ?? "",
 			price:
@@ -66,6 +69,7 @@ export function ProductForm({
 			const parsed = productFormSchema.parse(value);
 			try {
 				await onSubmit({
+					sku: parsed.sku,
 					name: parsed.name,
 					description: parsed.description,
 					price: parsed.price,
@@ -124,6 +128,15 @@ export function ProductForm({
 						label="Name"
 						placeholder="Tent — 4 person"
 						required
+					/>
+				)}
+			</form.AppField>
+			<form.AppField name="sku">
+				{(field) => (
+					<field.TextField
+						label="SKU"
+						placeholder="TENT-4P"
+						description="Optional. Stable identifier used by bulk export/import to match existing products."
 					/>
 				)}
 			</form.AppField>

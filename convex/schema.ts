@@ -71,6 +71,10 @@ export default defineSchema({
 
 	products: defineTable({
 		retailerId: v.id("retailers"),
+		// Stable retailer-provided identifier. Optional because products created
+		// before Sprint 1 (or via the single-product form without a SKU) won't
+		// have one. When present + matched, drives bulk upsert behavior.
+		sku: v.optional(v.string()),
 		name: v.string(),
 		description: v.optional(v.string()),
 		price: v.number(),
@@ -84,7 +88,8 @@ export default defineSchema({
 		updatedAt: v.number(),
 	})
 		.index("by_retailer", ["retailerId"])
-		.index("by_retailer_active", ["retailerId", "active"]),
+		.index("by_retailer_active", ["retailerId", "active"])
+		.index("by_retailer_sku", ["retailerId", "sku"]),
 
 	orders: defineTable({
 		retailerId: v.id("retailers"),

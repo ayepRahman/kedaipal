@@ -1,10 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
+import { Download, Upload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
-import { formatPrice } from "../lib/format";
+import { convexErrorMessage, formatPrice } from "../lib/format";
+import {
+	downloadProductsCsv,
+	downloadProductsXlsx,
+	type ExportableProduct,
+} from "../lib/product-export";
 import { cn } from "../lib/utils";
 
 type StatusFilter = "all" | "active" | "archived";
@@ -23,6 +30,7 @@ function ProductsRoute() {
 	const [rawQuery, setRawQuery] = useState("");
 	const [query, setQuery] = useState("");
 	const [status, setStatus] = useState<StatusFilter>("all");
+	const [exporting, setExporting] = useState<"csv" | "xlsx" | null>(null);
 
 	useEffect(() => {
 		const t = setTimeout(() => setQuery(rawQuery), 200);
@@ -65,23 +73,80 @@ function ProductsRoute() {
 		setStatus("all");
 	};
 
+	async function handleExport(kind: "csv" | "xlsx") {
+		if (!retailer) return;
+		if (!filtered || filtered.length === 0) {
+			toast.message("No products match the current filters to export.");
+			return;
+		}
+		setExporting(kind);
+		try {
+			const rows: ExportableProduct[] = filtered.map((p) => ({
+				sku: p.sku,
+				name: p.name,
+				description: p.description,
+				price: p.price,
+				stock: p.stock,
+				active: p.active,
+			}));
+			const fileBase = `kedaipal-${retailer.slug}`;
+			if (kind === "csv") downloadProductsCsv(rows, fileBase);
+			else await downloadProductsXlsx(rows, fileBase);
+		} catch (err) {
+			toast.error(convexErrorMessage(err));
+		} finally {
+			setExporting(null);
+		}
+	}
+
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="flex flex-wrap items-end justify-between gap-3">
+			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div className="flex min-w-0 flex-col gap-1">
 					<h2 className="text-xl font-bold">Products</h2>
 					<p className="text-xs text-muted-foreground">
 						{counts.active} active · {counts.archived} archived
 					</p>
 				</div>
-				<div className="flex gap-2">
-					<Button asChild variant="secondary" className="h-11">
-						<Link to="/app/products/import">Import CSV</Link>
-					</Button>
-					<Button asChild className="h-11">
-						<Link to="/app/products/new">+ New</Link>
-					</Button>
-				</div>
+				<Button asChild className="h-11">
+					<Link to="/app/products/new">+ New</Link>
+				</Button>
+			</div>
+
+			<div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
+				<Button asChild variant="ghost" className="h-8 px-2 text-sm">
+					<Link to="/app/products/import">
+						<Upload className="mr-1.5 size-3.5" aria-hidden />
+						Import
+					</Link>
+				</Button>
+				{counts.all > 0 ? (
+					<>
+						<span aria-hidden className="text-muted-foreground/40">
+							·
+						</span>
+						<Button
+							type="button"
+							variant="ghost"
+							className="h-8 px-2 text-sm"
+							disabled={exporting !== null}
+							onClick={() => handleExport("csv")}
+						>
+							<Download className="mr-1.5 size-3.5" aria-hidden />
+							{exporting === "csv" ? "Exporting…" : "Export CSV"}
+						</Button>
+						<Button
+							type="button"
+							variant="ghost"
+							className="h-8 px-2 text-sm"
+							disabled={exporting !== null}
+							onClick={() => handleExport("xlsx")}
+						>
+							<Download className="mr-1.5 size-3.5" aria-hidden />
+							{exporting === "xlsx" ? "Exporting…" : "Export XLSX"}
+						</Button>
+					</>
+				) : null}
 			</div>
 
 			<div className="relative">

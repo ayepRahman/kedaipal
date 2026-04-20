@@ -51,6 +51,10 @@ export type CheckoutFormValues = z.input<typeof checkoutFormSchema>;
 // "120.50") and transformed to integer minor units (sen) for storage. Stock is
 // a non-negative integer. See `src/lib/format.ts` for the inverse.
 export const productFormSchema = z.object({
+	sku: z
+		.string()
+		.max(60, "SKU must be at most 60 characters")
+		.transform((s) => (s.trim().length > 0 ? s.trim() : undefined)),
 	name: z
 		.string()
 		.trim()
