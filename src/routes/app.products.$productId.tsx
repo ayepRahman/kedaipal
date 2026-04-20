@@ -73,6 +73,7 @@ function EditProductRoute() {
 				key={product._id}
 				currency={product.currency}
 				initialValues={{
+					sku: product.sku,
 					name: product.name,
 					description: product.description,
 					price: product.price,
@@ -82,8 +83,10 @@ function EditProductRoute() {
 				}}
 				submitLabel="Save changes"
 				onSubmit={async (values) => {
+					// Passing null clears an existing SKU when the user blanks the field.
 					await update({
 						productId: product._id,
+						sku: values.sku ?? null,
 						name: values.name,
 						description: values.description,
 						price: values.price,

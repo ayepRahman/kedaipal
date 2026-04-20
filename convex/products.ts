@@ -6,6 +6,42 @@ import { rateLimiter } from "./lib/rateLimiter";
 const MAX_IMAGES_PER_PRODUCT = 5;
 const MAX_BULK_IMPORT_BATCH = 50;
 const MAX_PRODUCTS_PER_RETAILER = 50; // beta cap
+const MAX_SKU_LENGTH = 60;
+
+/**
+ * Normalize an optional SKU: trim; treat empty string as "no SKU". Throws
+ * `ConvexError` on length violation. Returns the stored value (string or
+ * undefined).
+ */
+function normalizeSku(raw: string | undefined, context: string): string | undefined {
+	if (raw === undefined) return undefined;
+	const trimmed = raw.trim();
+	if (trimmed.length === 0) return undefined;
+	if (trimmed.length > MAX_SKU_LENGTH)
+		throw new ConvexError(`${context}: sku must be at most ${MAX_SKU_LENGTH} characters`);
+	return trimmed;
+}
+
+/**
+ * Ensure no other product owned by this retailer already uses the same SKU.
+ * `excludeProductId` is passed on update so a product doesn't collide with
+ * itself. Throws `ConvexError` on conflict.
+ */
+async function assertSkuUnique(
+	ctx: QueryCtx | MutationCtx,
+	retailerId: Id<"retailers">,
+	sku: string,
+	excludeProductId?: Id<"products">,
+): Promise<void> {
+	const existing = await ctx.db
+		.query("products")
+		.withIndex("by_retailer_sku", (q) =>
+			q.eq("retailerId", retailerId).eq("sku", sku),
+		)
+		.first();
+	if (existing && existing._id !== excludeProductId)
+		throw new ConvexError(`SKU "${sku}" is already used by another product`);
+}
 
 async function requireUserId(
 	ctx: QueryCtx | MutationCtx,
@@ -86,6 +122,7 @@ export const get = query({
 export const create = mutation({
 	args: {
 		retailerId: v.id("retailers"),
+		sku: v.optional(v.string()),
 		name: v.string(),
 		description: v.optional(v.string()),
 		price: v.number(),
@@ -116,9 +153,13 @@ export const create = mutation({
 			throw new ConvexError(`Maximum ${MAX_IMAGES_PER_PRODUCT} images per product`);
 		if (args.name.trim().length === 0) throw new ConvexError("Name is required");
 
+		const sku = normalizeSku(args.sku, "Product");
+		if (sku) await assertSkuUnique(ctx, args.retailerId, sku);
+
 		const now = Date.now();
 		return ctx.db.insert("products", {
 			retailerId: args.retailerId,
+			sku,
 			name: args.name.trim(),
 			description: args.description,
 			price: args.price,
@@ -137,6 +178,8 @@ export const create = mutation({
 export const update = mutation({
 	args: {
 		productId: v.id("products"),
+		// `sku: null` clears an existing SKU; omitting leaves it unchanged.
+		sku: v.optional(v.union(v.string(), v.null())),
 		name: v.optional(v.string()),
 		description: v.optional(v.string()),
 		price: v.optional(v.number()),
@@ -149,7 +192,7 @@ export const update = mutation({
 	handler: async (ctx, { productId, ...fields }): Promise<void> => {
 		const userId = await requireUserId(ctx);
 		await rateLimiter.limit(ctx, "productWrite", { key: userId, throws: true });
-		await requireProductOwnership(ctx, productId);
+		const existing = await requireProductOwnership(ctx, productId);
 
 		if (fields.price !== undefined && fields.price < 0)
 			throw new ConvexError("Price must be non-negative");
@@ -166,8 +209,21 @@ export const update = mutation({
 
 		const updates: Record<string, unknown> = { updatedAt: Date.now() };
 		for (const [key, value] of Object.entries(fields)) {
+			if (key === "sku") continue;
 			if (value !== undefined) updates[key] = value;
 		}
+
+		if (fields.sku !== undefined) {
+			if (fields.sku === null) {
+				updates.sku = undefined;
+			} else {
+				const normalized = normalizeSku(fields.sku, "Product");
+				if (normalized)
+					await assertSkuUnique(ctx, existing.retailerId, normalized, productId);
+				updates.sku = normalized;
+			}
+		}
+
 		await ctx.db.patch(productId, updates);
 	},
 });
@@ -191,6 +247,7 @@ export const bulkCreate = mutation({
 		currency: v.string(),
 		items: v.array(
 			v.object({
+				sku: v.optional(v.string()),
 				name: v.string(),
 				description: v.optional(v.string()),
 				price: v.number(),
@@ -225,22 +282,46 @@ export const bulkCreate = mutation({
 
 		// Pre-validate the entire batch BEFORE any insert so a bad row aborts
 		// the whole transaction cleanly — partial imports are confusing.
-		args.items.forEach((item, i) => {
-			const rowNum = i + 1;
-			if (item.name.trim().length === 0)
-				throw new ConvexError(`Row ${rowNum}: name is required`);
-			if (item.name.length > 120)
-				throw new ConvexError(`Row ${rowNum}: name must be at most 120 characters`);
-			if (item.price < 0)
-				throw new ConvexError(`Row ${rowNum}: price must be non-negative`);
-			if (!Number.isInteger(item.stock) || item.stock < 0)
-				throw new ConvexError(`Row ${rowNum}: stock must be a non-negative integer`);
+		const normalized: { sku: string | undefined; item: (typeof args.items)[number] }[] =
+			args.items.map((item, i) => {
+				const rowNum = i + 1;
+				if (item.name.trim().length === 0)
+					throw new ConvexError(`Row ${rowNum}: name is required`);
+				if (item.name.length > 120)
+					throw new ConvexError(`Row ${rowNum}: name must be at most 120 characters`);
+				if (item.price < 0)
+					throw new ConvexError(`Row ${rowNum}: price must be non-negative`);
+				if (!Number.isInteger(item.stock) || item.stock < 0)
+					throw new ConvexError(
+						`Row ${rowNum}: stock must be a non-negative integer`,
+					);
+				const sku = normalizeSku(item.sku, `Row ${rowNum}`);
+				return { sku, item };
+			});
+
+		// Intra-batch SKU uniqueness: duplicates in the same upload are always
+		// a mistake (typo or copy-paste).
+		const skuSeen = new Map<string, number>();
+		normalized.forEach(({ sku }, i) => {
+			if (!sku) return;
+			const prev = skuSeen.get(sku);
+			if (prev !== undefined)
+				throw new ConvexError(
+					`Duplicate sku "${sku}" in rows ${prev + 1} and ${i + 1}`,
+				);
+			skuSeen.set(sku, i);
 		});
 
+		// Cross-batch SKU uniqueness against existing products.
+		for (const { sku } of normalized) {
+			if (sku) await assertSkuUnique(ctx, args.retailerId, sku);
+		}
+
 		const now = Date.now();
-		for (const [i, item] of args.items.entries()) {
+		for (const [i, { sku, item }] of normalized.entries()) {
 			await ctx.db.insert("products", {
 				retailerId: args.retailerId,
+				sku,
 				name: item.name.trim(),
 				description: item.description,
 				price: item.price,

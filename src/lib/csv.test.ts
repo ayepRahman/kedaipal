@@ -65,4 +65,37 @@ describe("parseProductsCsv", () => {
 		expect(result.errorRows).toEqual([]);
 		expect(result.validRows.length).toBeGreaterThan(0);
 	});
+
+	test("captures optional sku column when present", () => {
+		const csv = [
+			"sku,name,description,price,stock",
+			"TENT-4P,Tent,4-season,499.00,12",
+			",Headlamp,,89.5,30",
+		].join("\n");
+
+		const result = parseProductsCsv(csv);
+		expect(result.errorRows).toEqual([]);
+		expect(result.validRows[0]?.sku).toBe("TENT-4P");
+		expect(result.validRows[1]?.sku).toBeUndefined();
+	});
+
+	test("rejects oversized sku", () => {
+		const longSku = "X".repeat(61);
+		const csv = [
+			"sku,name,description,price,stock",
+			`${longSku},Tent,,499,12`,
+		].join("\n");
+
+		const result = parseProductsCsv(csv);
+		expect(result.validRows).toEqual([]);
+		expect(result.errorRows[0].errors[0]).toMatch(/sku/);
+	});
+
+	test("works without an sku column at all (back-compat)", () => {
+		const csv = ["name,description,price,stock", "Tent,,499,12"].join("\n");
+		const result = parseProductsCsv(csv);
+		expect(result.errorRows).toEqual([]);
+		expect(result.validRows).toHaveLength(1);
+		expect(result.validRows[0].sku).toBeUndefined();
+	});
 });

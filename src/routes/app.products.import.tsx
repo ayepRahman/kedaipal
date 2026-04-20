@@ -25,6 +25,13 @@ const SCHEMA_DOCS: Array<{
 	required: boolean;
 	notes: string;
 }> = [
+	{
+		column: "sku",
+		type: "text",
+		required: false,
+		notes:
+			"Max 60 characters. Stable identifier used for updates (bulk upsert).",
+	},
 	{ column: "name", type: "text", required: true, notes: "Max 120 characters" },
 	{
 		column: "description",
@@ -86,6 +93,7 @@ function ImportProductsRoute() {
 					retailerId: retailer._id,
 					currency: retailer.currency,
 					items: slice.map((r) => ({
+						sku: r.sku,
 						name: r.name,
 						description: r.description,
 						price: r.price,

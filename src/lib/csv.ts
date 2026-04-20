@@ -1,44 +1,30 @@
 import Papa from "papaparse";
+import {
+	type ParsedProductImport,
+	PRODUCT_IMPORT_HEADER,
+	type RawImportRow,
+	validateProductRows,
+} from "./product-import";
 
 /**
  * CSV bulk-import for products. The pipeline is:
  *   1. `parseProductsCsv` — parse text → typed rows + per-row validation errors
+ *      (shared row validator lives in `src/lib/product-import.ts`)
  *   2. UI shows preview, blocks submit if any row is invalid
- *   3. Caller chunks `validRows` and calls `api.products.bulkCreate`
- *
- * Prices are entered in MAJOR units (e.g. "120.50") and converted to integer
- * MINOR units (sen) before being sent to Convex — same convention as the
- * single-product form. See `src/lib/format.ts` for the inverse.
+ *   3. Caller chunks `validRows` and calls `api.products.bulkUpsert` /
+ *      `bulkCreate`
  */
 
-export const PRODUCT_CSV_COLUMNS = [
-	"name",
-	"description",
-	"price",
-	"stock",
-] as const;
-
-export const PRODUCT_CSV_HEADER = PRODUCT_CSV_COLUMNS.join(",");
-
-export interface ProductCsvRow {
-	rowNumber: number; // 1-indexed, matches what the user sees in Excel
-	name: string;
-	description: string | undefined;
-	price: number; // minor units
-	stock: number;
-}
-
-export interface ProductCsvRowError {
-	rowNumber: number;
-	raw: Record<string, string>;
-	errors: string[];
-}
-
-export interface ParsedProductsCsv {
-	validRows: ProductCsvRow[];
-	errorRows: ProductCsvRowError[];
-	totalRows: number;
-}
+export type {
+	ParsedProductImport as ParsedProductsCsv,
+	ProductImportRow as ProductCsvRow,
+	ProductImportRowError as ProductCsvRowError,
+} from "./product-import";
+// Re-exports so existing imports keep working.
+export {
+	PRODUCT_IMPORT_COLUMNS as PRODUCT_CSV_COLUMNS,
+	PRODUCT_IMPORT_HEADER as PRODUCT_CSV_HEADER,
+} from "./product-import";
 
 /**
  * Build a downloadable template with the header row + two example rows so
@@ -46,9 +32,9 @@ export interface ParsedProductsCsv {
  */
 export function buildProductCsvTemplate(): string {
 	return [
-		PRODUCT_CSV_HEADER,
-		"Tent — 4 person,Lightweight 4-season tent,499.00,12",
-		"Headlamp 200lm,Rechargeable USB-C,89.50,30",
+		PRODUCT_IMPORT_HEADER,
+		"TENT-4P,Tent — 4 person,Lightweight 4-season tent,499.00,12",
+		"HL-200,Headlamp 200lm,Rechargeable USB-C,89.50,30",
 	].join("\n");
 }
 
@@ -74,81 +60,13 @@ export function downloadProductCsvTemplate(): void {
  * Parse a CSV string into typed rows. Validates each row independently and
  * collects errors so the UI can render a row-by-row status table.
  */
-export function parseProductsCsv(text: string): ParsedProductsCsv {
-	const result = Papa.parse<Record<string, string>>(text.trim(), {
+export function parseProductsCsv(text: string): ParsedProductImport {
+	const result = Papa.parse<RawImportRow>(text.trim(), {
 		header: true,
 		skipEmptyLines: "greedy",
 		transformHeader: (h) => h.trim().toLowerCase(),
 	});
 
-	const validRows: ProductCsvRow[] = [];
-	const errorRows: ProductCsvRowError[] = [];
-
 	const headers = result.meta.fields ?? [];
-	const missingColumns = PRODUCT_CSV_COLUMNS.filter(
-		(c) => !headers.includes(c),
-	);
-	if (missingColumns.length > 0) {
-		errorRows.push({
-			rowNumber: 0,
-			raw: {},
-			errors: [
-				`Missing required column${missingColumns.length === 1 ? "" : "s"}: ${missingColumns.join(", ")}`,
-			],
-		});
-		return { validRows, errorRows, totalRows: 0 };
-	}
-
-	result.data.forEach((raw, i) => {
-		const rowNumber = i + 2; // header is row 1
-		const errors: string[] = [];
-
-		const name = (raw.name ?? "").trim();
-		if (name.length === 0) errors.push("name is required");
-		if (name.length > 120) errors.push("name must be at most 120 characters");
-
-		const descriptionRaw = (raw.description ?? "").trim();
-		const description = descriptionRaw.length > 0 ? descriptionRaw : undefined;
-		if (description && description.length > 1000)
-			errors.push("description must be at most 1000 characters");
-
-		const priceStr = (raw.price ?? "").trim();
-		let priceMinor = 0;
-		if (priceStr.length === 0) {
-			errors.push("price is required");
-		} else if (!/^\d+(\.\d{1,2})?$/.test(priceStr)) {
-			errors.push("price must be a number, e.g. 120 or 120.50");
-		} else {
-			priceMinor = Math.round(Number.parseFloat(priceStr) * 100);
-		}
-
-		const stockStr = (raw.stock ?? "").trim();
-		let stock = 0;
-		if (stockStr.length === 0) {
-			errors.push("stock is required");
-		} else if (!/^\d+$/.test(stockStr)) {
-			errors.push("stock must be a whole number");
-		} else {
-			stock = Number.parseInt(stockStr, 10);
-		}
-
-		if (errors.length > 0) {
-			errorRows.push({ rowNumber, raw, errors });
-			return;
-		}
-
-		validRows.push({
-			rowNumber,
-			name,
-			description,
-			price: priceMinor,
-			stock,
-		});
-	});
-
-	return {
-		validRows,
-		errorRows,
-		totalRows: validRows.length + errorRows.length,
-	};
+	return validateProductRows(result.data, Array.from(headers), 2);
 }

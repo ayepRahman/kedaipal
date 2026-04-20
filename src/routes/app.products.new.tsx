@@ -32,6 +32,7 @@ function NewProductRoute() {
 				onSubmit={async (values) => {
 					await create({
 						retailerId: retailer._id,
+						sku: values.sku,
 						name: values.name,
 						description: values.description,
 						price: values.price,
