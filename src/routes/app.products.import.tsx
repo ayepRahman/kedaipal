@@ -1,11 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useConvex, useMutation, useQuery } from "convex/react";
-import {
-	ClipboardPaste,
-	Download,
-	FileSpreadsheet,
-	Upload,
-} from "lucide-react";
+import { Download, FileSpreadsheet, Upload } from "lucide-react";
 import { type ChangeEvent, useState } from "react";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
@@ -14,7 +9,6 @@ import {
 	downloadOutdoorGearSampleCsv,
 	downloadProductCsvTemplate,
 	parseProductsCsv,
-	parseProductsFromPaste,
 } from "../lib/csv";
 import { convexErrorMessage, formatPrice } from "../lib/format";
 import {
@@ -103,9 +97,6 @@ function ImportProductsRoute() {
 		done: number;
 		total: number;
 	} | null>(null);
-	const [pasting, setPasting] = useState(false);
-	const [pasteText, setPasteText] = useState("");
-	const [pasteError, setPasteError] = useState<string | null>(null);
 
 	if (!retailer) return null;
 
@@ -129,35 +120,15 @@ function ImportProductsRoute() {
 		}
 	}
 
-	function handleParsePaste() {
-		resetDerivedState();
-		try {
-			const result = parseProductsFromPaste(pasteText);
-			if (result.totalRows === 0 && result.errorRows.length === 0) {
-				setPasteError(
-					"Paste the header row (sku, name, description, price, stock) plus data rows.",
-				);
-				return;
-			}
-			setParsed(result);
-			setFileName("Pasted from spreadsheet");
-			setPasting(false);
-		} catch (err) {
-			setPasteError(convexErrorMessage(err));
-		}
-	}
-
 	function resetDerivedState() {
 		setProgress(null);
 		setPreview(null);
-		setPasteError(null);
 	}
 
 	function reset() {
 		resetDerivedState();
 		setParsed(null);
 		setFileName(null);
-		setPasteText("");
 	}
 
 	async function handlePreview() {
@@ -339,60 +310,6 @@ function ImportProductsRoute() {
 						className="hidden"
 					/>
 				</label>
-
-				{pasting ? (
-					<div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-						<p className="text-sm font-medium">Paste from a spreadsheet</p>
-						<p className="text-xs text-muted-foreground">
-							Copy the rows (including the header) from Excel, Google Sheets, or
-							Numbers and paste below.
-						</p>
-						<textarea
-							value={pasteText}
-							onChange={(e) => setPasteText(e.target.value)}
-							placeholder={
-								"sku\tname\tdescription\tprice\tstock\nTENT-4P\tTent\t4-season\t499\t12"
-							}
-							className="min-h-28 w-full rounded-xl border border-border bg-background p-3 font-mono text-xs"
-							aria-label="Paste spreadsheet content"
-						/>
-						{pasteError ? (
-							<p className="text-xs text-destructive">{pasteError}</p>
-						) : null}
-						<div className="flex gap-2">
-							<Button
-								type="button"
-								onClick={handleParsePaste}
-								className="h-10 text-sm"
-								disabled={pasteText.trim().length === 0}
-							>
-								Parse pasted rows
-							</Button>
-							<Button
-								type="button"
-								variant="secondary"
-								onClick={() => {
-									setPasting(false);
-									setPasteText("");
-									setPasteError(null);
-								}}
-								className="h-10 text-sm"
-							>
-								Cancel
-							</Button>
-						</div>
-					</div>
-				) : parsed ? null : (
-					<Button
-						type="button"
-						variant="secondary"
-						onClick={() => setPasting(true)}
-						className="h-10 self-start text-sm"
-					>
-						<ClipboardPaste className="mr-2 size-4" aria-hidden /> Paste from
-						spreadsheet
-					</Button>
-				)}
 
 				{parsed ? (
 					<Button

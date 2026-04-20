@@ -90,31 +90,9 @@ function triggerCsvDownload(content: string, filename: string): void {
  * collects errors so the UI can render a row-by-row status table.
  */
 export function parseProductsCsv(text: string): ParsedProductImport {
-	return parseDelimitedProducts(text, ",");
-}
-
-/**
- * Parse text pasted from a spreadsheet. Excel / Google Sheets / Numbers all
- * put TAB between cells on copy; falls back to comma if no tabs are present
- * (so a retailer pasting a CSV dump still works).
- */
-export function parseProductsFromPaste(text: string): ParsedProductImport {
-	const trimmed = text.trim();
-	if (trimmed.length === 0) {
-		return { validRows: [], errorRows: [], totalRows: 0 };
-	}
-	const delimiter = trimmed.includes("\t") ? "\t" : ",";
-	return parseDelimitedProducts(trimmed, delimiter);
-}
-
-function parseDelimitedProducts(
-	text: string,
-	delimiter: "," | "\t",
-): ParsedProductImport {
 	const result = Papa.parse<RawImportRow>(text.trim(), {
 		header: true,
 		skipEmptyLines: "greedy",
-		delimiter,
 		transformHeader: (h) => h.trim().toLowerCase(),
 	});
 	const headers = result.meta.fields ?? [];
