@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
-import { Download } from "lucide-react";
+import { Download, Upload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
@@ -101,45 +101,52 @@ function ProductsRoute() {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="flex flex-wrap items-end justify-between gap-3">
+			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div className="flex min-w-0 flex-col gap-1">
 					<h2 className="text-xl font-bold">Products</h2>
 					<p className="text-xs text-muted-foreground">
 						{counts.active} active · {counts.archived} archived
 					</p>
 				</div>
-				<div className="flex flex-wrap gap-2">
-					{counts.all > 0 ? (
-						<>
-							<Button
-								type="button"
-								variant="secondary"
-								className="h-11"
-								disabled={exporting !== null}
-								onClick={() => handleExport("csv")}
-							>
-								<Download className="mr-1 size-4" aria-hidden />
-								{exporting === "csv" ? "Exporting…" : "Export CSV"}
-							</Button>
-							<Button
-								type="button"
-								variant="secondary"
-								className="h-11"
-								disabled={exporting !== null}
-								onClick={() => handleExport("xlsx")}
-							>
-								<Download className="mr-1 size-4" aria-hidden />
-								{exporting === "xlsx" ? "Exporting…" : "Export XLSX"}
-							</Button>
-						</>
-					) : null}
-					<Button asChild variant="secondary" className="h-11">
-						<Link to="/app/products/import">Import CSV</Link>
-					</Button>
-					<Button asChild className="h-11">
-						<Link to="/app/products/new">+ New</Link>
-					</Button>
-				</div>
+				<Button asChild className="h-11">
+					<Link to="/app/products/new">+ New</Link>
+				</Button>
+			</div>
+
+			<div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
+				<Button asChild variant="ghost" className="h-8 px-2 text-sm">
+					<Link to="/app/products/import">
+						<Upload className="mr-1.5 size-3.5" aria-hidden />
+						Import
+					</Link>
+				</Button>
+				{counts.all > 0 ? (
+					<>
+						<span aria-hidden className="text-muted-foreground/40">
+							·
+						</span>
+						<Button
+							type="button"
+							variant="ghost"
+							className="h-8 px-2 text-sm"
+							disabled={exporting !== null}
+							onClick={() => handleExport("csv")}
+						>
+							<Download className="mr-1.5 size-3.5" aria-hidden />
+							{exporting === "csv" ? "Exporting…" : "Export CSV"}
+						</Button>
+						<Button
+							type="button"
+							variant="ghost"
+							className="h-8 px-2 text-sm"
+							disabled={exporting !== null}
+							onClick={() => handleExport("xlsx")}
+						>
+							<Download className="mr-1.5 size-3.5" aria-hidden />
+							{exporting === "xlsx" ? "Exporting…" : "Export XLSX"}
+						</Button>
+					</>
+				) : null}
 			</div>
 
 			<div className="relative">

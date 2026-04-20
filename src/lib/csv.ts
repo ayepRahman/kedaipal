@@ -42,14 +42,43 @@ export function buildProductCsvTemplate(): string {
  * Trigger a browser download of the template CSV. No-op on the server.
  */
 export function downloadProductCsvTemplate(): void {
+	triggerCsvDownload(
+		buildProductCsvTemplate(),
+		"kedaipal-products-template.csv",
+	);
+}
+
+/**
+ * Vertical-specific sample template for outdoor gear retailers. The rows
+ * reflect the pilot vertical's realistic product mix (tent, sleeping bag,
+ * backpack, headlamp, stove). A retailer can download this, tweak names and
+ * prices in their spreadsheet, and re-upload to bootstrap their catalog.
+ */
+export function buildOutdoorGearSampleCsv(): string {
+	return [
+		PRODUCT_IMPORT_HEADER,
+		'TENT-4P,4-person 4-season tent,"Lightweight aluminium poles, weatherproof fly",799.00,8',
+		'SB-COMF-15,Comfort sleeping bag (15°C),"Synthetic fill, compact pack size",189.00,15',
+		'BP-45L,45L trekking backpack,"Adjustable torso, hydration-ready",259.00,12',
+		'HL-300,Headlamp 300lm,"Rechargeable USB-C, dimmer + red-light mode",129.50,40',
+		'ST-MULTI-1,Multi-fuel camp stove,"Petrol / kerosene / alcohol, with carry case",349.00,10',
+	].join("\n");
+}
+
+export function downloadOutdoorGearSampleCsv(): void {
+	triggerCsvDownload(
+		buildOutdoorGearSampleCsv(),
+		"kedaipal-products-outdoor-gear-sample.csv",
+	);
+}
+
+function triggerCsvDownload(content: string, filename: string): void {
 	if (typeof window === "undefined") return;
-	const blob = new Blob([buildProductCsvTemplate()], {
-		type: "text/csv;charset=utf-8",
-	});
+	const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
 	const url = URL.createObjectURL(blob);
 	const a = document.createElement("a");
 	a.href = url;
-	a.download = "kedaipal-products-template.csv";
+	a.download = filename;
 	document.body.appendChild(a);
 	a.click();
 	document.body.removeChild(a);
@@ -61,31 +90,9 @@ export function downloadProductCsvTemplate(): void {
  * collects errors so the UI can render a row-by-row status table.
  */
 export function parseProductsCsv(text: string): ParsedProductImport {
-	return parseDelimitedProducts(text, ",");
-}
-
-/**
- * Parse text pasted from a spreadsheet. Excel / Google Sheets / Numbers all
- * put TAB between cells on copy; falls back to comma if no tabs are present
- * (so a retailer pasting a CSV dump still works).
- */
-export function parseProductsFromPaste(text: string): ParsedProductImport {
-	const trimmed = text.trim();
-	if (trimmed.length === 0) {
-		return { validRows: [], errorRows: [], totalRows: 0 };
-	}
-	const delimiter = trimmed.includes("\t") ? "\t" : ",";
-	return parseDelimitedProducts(trimmed, delimiter);
-}
-
-function parseDelimitedProducts(
-	text: string,
-	delimiter: "," | "\t",
-): ParsedProductImport {
 	const result = Papa.parse<RawImportRow>(text.trim(), {
 		header: true,
 		skipEmptyLines: "greedy",
-		delimiter,
 		transformHeader: (h) => h.trim().toLowerCase(),
 	});
 	const headers = result.meta.fields ?? [];
