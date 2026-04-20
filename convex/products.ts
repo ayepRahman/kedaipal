@@ -241,21 +241,78 @@ export const archive = mutation({
 	},
 });
 
-export const bulkCreate = mutation({
+const bulkImportItemValidator = v.object({
+	sku: v.optional(v.string()),
+	name: v.string(),
+	description: v.optional(v.string()),
+	price: v.number(),
+	stock: v.number(),
+});
+
+interface NormalizedBulkItem {
+	sku: string | undefined;
+	item: {
+		sku?: string;
+		name: string;
+		description?: string;
+		price: number;
+		stock: number;
+	};
+}
+
+/**
+ * Shared pre-validation for bulk-import items. Mirrors the CSV/XLSX client
+ * parser rules so we reject identical inputs with the same messages. Throws
+ * ConvexError with a Row N prefix on the first failure — matches
+ * all-or-nothing batch semantics.
+ */
+function preValidateBulkItems(
+	items: { sku?: string; name: string; price: number; stock: number }[],
+): NormalizedBulkItem[] {
+	const normalized: NormalizedBulkItem[] = items.map((item, i) => {
+		const rowNum = i + 1;
+		if (item.name.trim().length === 0)
+			throw new ConvexError(`Row ${rowNum}: name is required`);
+		if (item.name.length > 120)
+			throw new ConvexError(
+				`Row ${rowNum}: name must be at most 120 characters`,
+			);
+		if (item.price < 0)
+			throw new ConvexError(`Row ${rowNum}: price must be non-negative`);
+		if (!Number.isInteger(item.stock) || item.stock < 0)
+			throw new ConvexError(
+				`Row ${rowNum}: stock must be a non-negative integer`,
+			);
+		const sku = normalizeSku(item.sku, `Row ${rowNum}`);
+		return { sku, item: item as NormalizedBulkItem["item"] };
+	});
+
+	// Intra-batch SKU uniqueness: duplicates in the same upload are always a
+	// mistake (typo or copy-paste).
+	const skuSeen = new Map<string, number>();
+	normalized.forEach(({ sku }, i) => {
+		if (!sku) return;
+		const prev = skuSeen.get(sku);
+		if (prev !== undefined)
+			throw new ConvexError(
+				`Duplicate sku "${sku}" in rows ${prev + 1} and ${i + 1}`,
+			);
+		skuSeen.set(sku, i);
+	});
+
+	return normalized;
+}
+
+export const bulkUpsert = mutation({
 	args: {
 		retailerId: v.id("retailers"),
 		currency: v.string(),
-		items: v.array(
-			v.object({
-				sku: v.optional(v.string()),
-				name: v.string(),
-				description: v.optional(v.string()),
-				price: v.number(),
-				stock: v.number(),
-			}),
-		),
+		items: v.array(bulkImportItemValidator),
 	},
-	handler: async (ctx, args): Promise<{ created: number }> => {
+	handler: async (
+		ctx,
+		args,
+	): Promise<{ created: number; updated: number }> => {
 		const userId = await requireUserId(ctx);
 		await rateLimiter.limit(ctx, "productBulkImport", {
 			key: userId,
@@ -270,73 +327,184 @@ export const bulkCreate = mutation({
 				`Maximum ${MAX_BULK_IMPORT_BATCH} products per batch (received ${args.items.length})`,
 			);
 
+		const normalized = preValidateBulkItems(args.items);
+
+		// First pass: classify every row as insert or update by looking up SKU.
+		// Must precede the cap check — otherwise a pure-update batch could be
+		// falsely rejected for exceeding the beta cap.
+		const classifications: (NormalizedBulkItem & {
+			existingId: Id<"products"> | null;
+		})[] = [];
+		for (const entry of normalized) {
+			if (!entry.sku) {
+				classifications.push({ ...entry, existingId: null });
+				continue;
+			}
+			const existing = await ctx.db
+				.query("products")
+				.withIndex("by_retailer_sku", (q) =>
+					q.eq("retailerId", args.retailerId).eq("sku", entry.sku),
+				)
+				.first();
+			classifications.push({ ...entry, existingId: existing?._id ?? null });
+		}
+
+		const insertCount = classifications.filter(
+			(c) => c.existingId === null,
+		).length;
+
 		const existingCount = await ctx.db
 			.query("products")
 			.withIndex("by_retailer", (q) => q.eq("retailerId", args.retailerId))
 			.collect()
 			.then((r) => r.length);
-		if (existingCount + args.items.length > MAX_PRODUCTS_PER_RETAILER)
+		if (existingCount + insertCount > MAX_PRODUCTS_PER_RETAILER)
 			throw new ConvexError(
-				`Beta limit: would exceed ${MAX_PRODUCTS_PER_RETAILER} products per retailer (currently ${existingCount})`,
+				`Beta limit: would exceed ${MAX_PRODUCTS_PER_RETAILER} products per retailer (currently ${existingCount}, +${insertCount} new)`,
 			);
 
-		// Pre-validate the entire batch BEFORE any insert so a bad row aborts
-		// the whole transaction cleanly — partial imports are confusing.
-		const normalized: { sku: string | undefined; item: (typeof args.items)[number] }[] =
-			args.items.map((item, i) => {
-				const rowNum = i + 1;
-				if (item.name.trim().length === 0)
-					throw new ConvexError(`Row ${rowNum}: name is required`);
-				if (item.name.length > 120)
-					throw new ConvexError(`Row ${rowNum}: name must be at most 120 characters`);
-				if (item.price < 0)
-					throw new ConvexError(`Row ${rowNum}: price must be non-negative`);
-				if (!Number.isInteger(item.stock) || item.stock < 0)
-					throw new ConvexError(
-						`Row ${rowNum}: stock must be a non-negative integer`,
-					);
-				const sku = normalizeSku(item.sku, `Row ${rowNum}`);
-				return { sku, item };
-			});
-
-		// Intra-batch SKU uniqueness: duplicates in the same upload are always
-		// a mistake (typo or copy-paste).
-		const skuSeen = new Map<string, number>();
-		normalized.forEach(({ sku }, i) => {
-			if (!sku) return;
-			const prev = skuSeen.get(sku);
-			if (prev !== undefined)
-				throw new ConvexError(
-					`Duplicate sku "${sku}" in rows ${prev + 1} and ${i + 1}`,
-				);
-			skuSeen.set(sku, i);
-		});
-
-		// Cross-batch SKU uniqueness against existing products.
-		for (const { sku } of normalized) {
-			if (sku) await assertSkuUnique(ctx, args.retailerId, sku);
-		}
-
 		const now = Date.now();
+		let created = 0;
+		let updated = 0;
+		for (const [i, { sku, item, existingId }] of classifications.entries()) {
+			if (existingId) {
+				// Preserve channel, active, imageStorageIds, sortOrder, createdAt,
+				// and the SKU itself (matched by it). Refresh currency to whatever
+				// the retailer has configured now.
+				await ctx.db.patch(existingId, {
+					name: item.name.trim(),
+					description: item.description,
+					price: item.price,
+					currency: args.currency,
+					stock: item.stock,
+					updatedAt: now,
+				});
+				updated++;
+			} else {
+				await ctx.db.insert("products", {
+					retailerId: args.retailerId,
+					sku,
+					name: item.name.trim(),
+					description: item.description,
+					price: item.price,
+					currency: args.currency,
+					stock: item.stock,
+					imageStorageIds: [],
+					sortOrder: now + i,
+					active: true,
+					channel: "whatsapp",
+					createdAt: now,
+					updatedAt: now,
+				});
+				created++;
+			}
+		}
+
+		return { created, updated };
+	},
+});
+
+/**
+ * Non-mutating dry-run for `bulkUpsert`. Returns a per-row action plan and
+ * summary counts so the UI can show "3 new · 12 updates · 2 unchanged"
+ * before the retailer commits. Advisory only — `bulkUpsert` re-classifies
+ * at commit time because the DB state can change between preview and
+ * commit (another tab, another user, another import).
+ */
+export const bulkUpsertPreview = query({
+	args: {
+		retailerId: v.id("retailers"),
+		items: v.array(bulkImportItemValidator),
+	},
+	handler: async (ctx, args) => {
+		await requireRetailerOwnership(ctx, args.retailerId);
+
+		if (args.items.length > MAX_BULK_IMPORT_BATCH)
+			throw new ConvexError(
+				`Preview exceeds max batch size ${MAX_BULK_IMPORT_BATCH}`,
+			);
+
+		const normalized = preValidateBulkItems(args.items);
+
+		const plan: Array<{
+			rowNumber: number;
+			sku: string | undefined;
+			action: "insert" | "update";
+			productId: Id<"products"> | null;
+			diff: {
+				name?: { before: string; after: string };
+				description?: {
+					before: string | undefined;
+					after: string | undefined;
+				};
+				price?: { before: number; after: number };
+				stock?: { before: number; after: number };
+			};
+		}> = [];
+		let inserts = 0;
+		let updates = 0;
+		let noChange = 0;
+
 		for (const [i, { sku, item }] of normalized.entries()) {
-			await ctx.db.insert("products", {
-				retailerId: args.retailerId,
+			const rowNumber = i + 1;
+			if (!sku) {
+				inserts++;
+				plan.push({
+					rowNumber,
+					sku: undefined,
+					action: "insert",
+					productId: null,
+					diff: {},
+				});
+				continue;
+			}
+			const existing = await ctx.db
+				.query("products")
+				.withIndex("by_retailer_sku", (q) =>
+					q.eq("retailerId", args.retailerId).eq("sku", sku),
+				)
+				.first();
+			if (!existing) {
+				inserts++;
+				plan.push({
+					rowNumber,
+					sku,
+					action: "insert",
+					productId: null,
+					diff: {},
+				});
+				continue;
+			}
+
+			const newName = item.name.trim();
+			const diff: (typeof plan)[number]["diff"] = {};
+			if (existing.name !== newName)
+				diff.name = { before: existing.name, after: newName };
+			// Both sides normalize blank to undefined so toggling between "" and
+			// existing value is a real change worth showing.
+			if ((existing.description ?? undefined) !== (item.description ?? undefined))
+				diff.description = {
+					before: existing.description,
+					after: item.description,
+				};
+			if (existing.price !== item.price)
+				diff.price = { before: existing.price, after: item.price };
+			if (existing.stock !== item.stock)
+				diff.stock = { before: existing.stock, after: item.stock };
+
+			const hasChange = Object.keys(diff).length > 0;
+			if (hasChange) updates++;
+			else noChange++;
+			plan.push({
+				rowNumber,
 				sku,
-				name: item.name.trim(),
-				description: item.description,
-				price: item.price,
-				currency: args.currency,
-				stock: item.stock,
-				imageStorageIds: [],
-				sortOrder: now + i,
-				active: true,
-				channel: "whatsapp",
-				createdAt: now,
-				updatedAt: now,
+				action: "update",
+				productId: existing._id,
+				diff,
 			});
 		}
 
-		return { created: args.items.length };
+		return { plan, summary: { inserts, updates, noChange } };
 	},
 });
 
