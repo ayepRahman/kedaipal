@@ -1,17 +1,26 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
-import { Download, FileSpreadsheet, Upload } from "lucide-react";
+import {
+	ClipboardPaste,
+	Download,
+	FileSpreadsheet,
+	Upload,
+} from "lucide-react";
 import { type ChangeEvent, useState } from "react";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
 import { Button } from "../components/ui/button";
 import {
 	downloadProductCsvTemplate,
-	type ParsedProductsCsv,
-	PRODUCT_CSV_COLUMNS,
 	parseProductsCsv,
+	parseProductsFromPaste,
 } from "../lib/csv";
 import { convexErrorMessage, formatPrice } from "../lib/format";
+import {
+	type ParsedProductImport,
+	PRODUCT_IMPORT_COLUMNS,
+} from "../lib/product-import";
+import { parseProductsXlsx } from "../lib/xlsx";
 
 export const Route = createFileRoute("/app/products/import")({
 	component: ImportProductsRoute,
@@ -53,13 +62,16 @@ function ImportProductsRoute() {
 	const retailer = useQuery(api.retailers.getMyRetailer);
 	const bulkCreate = useMutation(api.products.bulkCreate);
 
-	const [parsed, setParsed] = useState<ParsedProductsCsv | null>(null);
+	const [parsed, setParsed] = useState<ParsedProductImport | null>(null);
 	const [fileName, setFileName] = useState<string | null>(null);
 	const [importing, setImporting] = useState(false);
 	const [progress, setProgress] = useState<{
 		done: number;
 		total: number;
 	} | null>(null);
+	const [pasting, setPasting] = useState(false);
+	const [pasteText, setPasteText] = useState("");
+	const [pasteError, setPasteError] = useState<string | null>(null);
 
 	if (!retailer) return null;
 
@@ -67,15 +79,48 @@ function ImportProductsRoute() {
 		const file = e.target.files?.[0];
 		if (!file) return;
 		setProgress(null);
+		setPasteError(null);
 		setFileName(file.name);
-		const text = await file.text();
-		setParsed(parseProductsCsv(text));
+		try {
+			const lower = file.name.toLowerCase();
+			if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
+				const buffer = await file.arrayBuffer();
+				setParsed(await parseProductsXlsx(buffer));
+			} else {
+				const text = await file.text();
+				setParsed(parseProductsCsv(text));
+			}
+		} catch (err) {
+			setParsed(null);
+			toast.error(convexErrorMessage(err));
+		}
+	}
+
+	function handleParsePaste() {
+		setProgress(null);
+		setPasteError(null);
+		try {
+			const result = parseProductsFromPaste(pasteText);
+			if (result.totalRows === 0 && result.errorRows.length === 0) {
+				setPasteError(
+					"Paste the header row (sku, name, description, price, stock) plus data rows.",
+				);
+				return;
+			}
+			setParsed(result);
+			setFileName("Pasted from spreadsheet");
+			setPasting(false);
+		} catch (err) {
+			setPasteError(convexErrorMessage(err));
+		}
 	}
 
 	function reset() {
 		setParsed(null);
 		setFileName(null);
 		setProgress(null);
+		setPasteText("");
+		setPasteError(null);
 	}
 
 	async function handleImport() {
@@ -127,7 +172,7 @@ function ImportProductsRoute() {
 				</Link>
 			</div>
 
-			<h2 className="text-xl font-bold">Import products from CSV</h2>
+			<h2 className="text-xl font-bold">Import products</h2>
 
 			<section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
 				<div className="flex items-start gap-3">
@@ -136,12 +181,12 @@ function ImportProductsRoute() {
 						aria-hidden
 					/>
 					<div className="flex flex-col gap-1">
-						<p className="font-medium">CSV format</p>
+						<p className="font-medium">CSV or Excel format</p>
 						<p className="text-sm text-muted-foreground">
 							The first row must be a header with these exact column names:
 							<br />
 							<span className="font-mono text-xs">
-								{PRODUCT_CSV_COLUMNS.join(", ")}
+								{PRODUCT_IMPORT_COLUMNS.join(", ")}
 							</span>
 						</p>
 					</div>
@@ -186,7 +231,7 @@ function ImportProductsRoute() {
 					>
 						Settings
 					</Link>
-					. Images are not supported in CSV — add them per product after
+					. Images are not supported in bulk — add them per product after
 					importing.
 				</p>
 
@@ -196,24 +241,81 @@ function ImportProductsRoute() {
 					onClick={downloadProductCsvTemplate}
 					className="h-11 self-start"
 				>
-					<Download className="mr-2 size-4" aria-hidden /> Download template
+					<Download className="mr-2 size-4" aria-hidden /> Download CSV template
 				</Button>
 			</section>
 
 			<section className="flex flex-col gap-3">
 				<label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card p-6 text-center hover:border-ring">
 					<Upload className="size-5 text-muted-foreground" aria-hidden />
-					<span className="font-medium">{fileName ?? "Choose a CSV file"}</span>
+					<span className="font-medium">
+						{fileName ?? "Choose a CSV or Excel file"}
+					</span>
 					<span className="text-xs text-muted-foreground">
-						Or drag &amp; drop — max 100 rows per import
+						Or drag &amp; drop — imported in batches of 50 rows.
 					</span>
 					<input
 						type="file"
-						accept=".csv,text/csv"
+						accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel"
 						onChange={handleFile}
 						className="hidden"
 					/>
 				</label>
+
+				{pasting ? (
+					<div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
+						<p className="text-sm font-medium">Paste from a spreadsheet</p>
+						<p className="text-xs text-muted-foreground">
+							Copy the rows (including the header) from Excel, Google Sheets, or
+							Numbers and paste below.
+						</p>
+						<textarea
+							value={pasteText}
+							onChange={(e) => setPasteText(e.target.value)}
+							placeholder={
+								"sku\tname\tdescription\tprice\tstock\nTENT-4P\tTent\t4-season\t499\t12"
+							}
+							className="min-h-28 w-full rounded-xl border border-border bg-background p-3 font-mono text-xs"
+							aria-label="Paste spreadsheet content"
+						/>
+						{pasteError ? (
+							<p className="text-xs text-destructive">{pasteError}</p>
+						) : null}
+						<div className="flex gap-2">
+							<Button
+								type="button"
+								onClick={handleParsePaste}
+								className="h-10 text-sm"
+								disabled={pasteText.trim().length === 0}
+							>
+								Parse pasted rows
+							</Button>
+							<Button
+								type="button"
+								variant="secondary"
+								onClick={() => {
+									setPasting(false);
+									setPasteText("");
+									setPasteError(null);
+								}}
+								className="h-10 text-sm"
+							>
+								Cancel
+							</Button>
+						</div>
+					</div>
+				) : parsed ? null : (
+					<Button
+						type="button"
+						variant="secondary"
+						onClick={() => setPasting(true)}
+						className="h-10 self-start text-sm"
+					>
+						<ClipboardPaste className="mr-2 size-4" aria-hidden /> Paste from
+						spreadsheet
+					</Button>
+				)}
+
 				{parsed ? (
 					<Button
 						type="button"
@@ -257,7 +359,7 @@ function PreviewSection({
 	parsed,
 	currency,
 }: {
-	parsed: ParsedProductsCsv;
+	parsed: ParsedProductImport;
 	currency: string;
 }) {
 	return (
@@ -294,6 +396,7 @@ function PreviewSection({
 						<thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
 							<tr>
 								<th className="px-3 py-2">#</th>
+								<th className="px-3 py-2">SKU</th>
 								<th className="px-3 py-2">Name</th>
 								<th className="px-3 py-2">Price</th>
 								<th className="px-3 py-2">Stock</th>
@@ -304,6 +407,11 @@ function PreviewSection({
 								<tr key={row.rowNumber} className="border-t border-border">
 									<td className="px-3 py-2 font-mono text-muted-foreground">
 										{row.rowNumber}
+									</td>
+									<td className="px-3 py-2 font-mono text-xs">
+										{row.sku ?? (
+											<span className="text-muted-foreground">—</span>
+										)}
 									</td>
 									<td className="px-3 py-2">{row.name}</td>
 									<td className="px-3 py-2">

@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { buildProductCsvTemplate, parseProductsCsv } from "./csv";
+import {
+	buildProductCsvTemplate,
+	parseProductsCsv,
+	parseProductsFromPaste,
+} from "./csv";
 
 describe("parseProductsCsv", () => {
 	test("parses valid rows and converts price to minor units", () => {
@@ -97,5 +101,34 @@ describe("parseProductsCsv", () => {
 		expect(result.errorRows).toEqual([]);
 		expect(result.validRows).toHaveLength(1);
 		expect(result.validRows[0].sku).toBeUndefined();
+	});
+});
+
+describe("parseProductsFromPaste", () => {
+	test("parses tab-delimited clipboard content from Excel/Sheets", () => {
+		const pasted = [
+			"sku\tname\tdescription\tprice\tstock",
+			"TENT-4P\tTent\t4-season\t499.00\t12",
+			"\tHeadlamp\t\t89.50\t30",
+		].join("\n");
+		const result = parseProductsFromPaste(pasted);
+		expect(result.errorRows).toEqual([]);
+		expect(result.validRows).toHaveLength(2);
+		expect(result.validRows[0]?.sku).toBe("TENT-4P");
+		expect(result.validRows[1]?.sku).toBeUndefined();
+	});
+
+	test("falls back to comma delimiter when no tabs", () => {
+		const pasted = "name,price,stock\nTent,499,12";
+		const result = parseProductsFromPaste(pasted);
+		expect(result.errorRows).toEqual([]);
+		expect(result.validRows).toHaveLength(1);
+	});
+
+	test("returns empty result for empty input without throwing", () => {
+		const result = parseProductsFromPaste("   \n  ");
+		expect(result.validRows).toEqual([]);
+		expect(result.errorRows).toEqual([]);
+		expect(result.totalRows).toBe(0);
 	});
 });
