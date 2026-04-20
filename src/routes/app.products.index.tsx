@@ -1,10 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
+import { Download } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
-import { formatPrice } from "../lib/format";
+import { convexErrorMessage, formatPrice } from "../lib/format";
+import {
+	downloadProductsCsv,
+	downloadProductsXlsx,
+	type ExportableProduct,
+} from "../lib/product-export";
 import { cn } from "../lib/utils";
 
 type StatusFilter = "all" | "active" | "archived";
@@ -23,6 +30,7 @@ function ProductsRoute() {
 	const [rawQuery, setRawQuery] = useState("");
 	const [query, setQuery] = useState("");
 	const [status, setStatus] = useState<StatusFilter>("all");
+	const [exporting, setExporting] = useState<"csv" | "xlsx" | null>(null);
 
 	useEffect(() => {
 		const t = setTimeout(() => setQuery(rawQuery), 200);
@@ -65,6 +73,32 @@ function ProductsRoute() {
 		setStatus("all");
 	};
 
+	async function handleExport(kind: "csv" | "xlsx") {
+		if (!retailer) return;
+		if (!filtered || filtered.length === 0) {
+			toast.message("No products match the current filters to export.");
+			return;
+		}
+		setExporting(kind);
+		try {
+			const rows: ExportableProduct[] = filtered.map((p) => ({
+				sku: p.sku,
+				name: p.name,
+				description: p.description,
+				price: p.price,
+				stock: p.stock,
+				active: p.active,
+			}));
+			const fileBase = `kedaipal-${retailer.slug}`;
+			if (kind === "csv") downloadProductsCsv(rows, fileBase);
+			else await downloadProductsXlsx(rows, fileBase);
+		} catch (err) {
+			toast.error(convexErrorMessage(err));
+		} finally {
+			setExporting(null);
+		}
+	}
+
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-wrap items-end justify-between gap-3">
@@ -74,7 +108,31 @@ function ProductsRoute() {
 						{counts.active} active · {counts.archived} archived
 					</p>
 				</div>
-				<div className="flex gap-2">
+				<div className="flex flex-wrap gap-2">
+					{counts.all > 0 ? (
+						<>
+							<Button
+								type="button"
+								variant="secondary"
+								className="h-11"
+								disabled={exporting !== null}
+								onClick={() => handleExport("csv")}
+							>
+								<Download className="mr-1 size-4" aria-hidden />
+								{exporting === "csv" ? "Exporting…" : "Export CSV"}
+							</Button>
+							<Button
+								type="button"
+								variant="secondary"
+								className="h-11"
+								disabled={exporting !== null}
+								onClick={() => handleExport("xlsx")}
+							>
+								<Download className="mr-1 size-4" aria-hidden />
+								{exporting === "xlsx" ? "Exporting…" : "Export XLSX"}
+							</Button>
+						</>
+					) : null}
 					<Button asChild variant="secondary" className="h-11">
 						<Link to="/app/products/import">Import CSV</Link>
 					</Button>
