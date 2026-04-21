@@ -68,12 +68,12 @@ The database schema already treats WhatsApp as one `channel` on retailers/produc
 
 ---
 
-## What's Built (as of 2026-04-09)
+## What's Built (as of 2026-04-21)
 
 **Convex schema** (`convex/schema.ts`):
 - `retailers` — Clerk-linked, slug-addressed, with logo, currency, locale, per-retailer WA message template overrides (en/ms), and optional payment instructions (bank, QR image, note).
 - `slugHistory` — preserves old slugs for redirects after renames.
-- `products` — price, stock, multiple images, sort order, active flag.
+- `products` — price, stock, multiple images, sort order, active flag, **SKU field**.
 - `orders` — shortId, line items, customer, full status pipeline.
 - `orderEvents` — per-order status history.
 
@@ -83,6 +83,23 @@ The database schema already treats WhatsApp as one `channel` on retailers/produc
 - Public storefront: `/$slug`
 - Onboarding, sign-in, sign-up
 - Dashboard: `/app` (index, products list/new/detail/import, orders list/detail, settings)
+
+**Bulk product management (Sprint 1 complete):**
+- **Export:** CSV and XLSX bulk export of the full product catalog.
+- **Import:** XLSX import with dry-run preview — rows are validated and shown in a diff-style table before committing. Upsert logic matches on SKU so existing products update and new ones are created in a single operation.
+- **Sample data:** outdoor gear sample XLSX bundled for first-time setup.
+- Shared validation layer (`src/lib/product-import.ts`, `src/lib/schemas.ts`) used by both import and the single-product form.
+
+**UX / UI improvements:**
+- Landing page: mobile nav, i18n fixes, entrance animations, extracted components.
+- Storefront header uses the retailer's logo SVG instead of plain text.
+- QR code dialog for sharing the storefront link.
+- Dashboard shows a "Go to Dashboard" CTA when the retailer is already logged in on the landing page.
+- Logo page loader with Framer Motion skeleton states.
+- Shopee integration placeholder on dashboard and settings (post-MVP hook).
+
+**Notifications:**
+- Retailer is notified via WhatsApp and a dashboard toast when a new or confirmed order arrives.
 
 **Current phase:** MVP is substantially implemented. Focus is piloting with the first real shop(s) from the founder's network and iterating based on validation signal.
 
