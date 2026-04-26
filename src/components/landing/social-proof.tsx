@@ -7,17 +7,17 @@ export function SocialProof() {
 		{
 			quote: m.testimonial_1_quote(),
 			role: m.testimonial_1_role(),
-			initial: "A",
+			initial: "M",
 		},
 		{
 			quote: m.testimonial_2_quote(),
 			role: m.testimonial_2_role(),
-			initial: "R",
+			initial: "K",
 		},
 		{
 			quote: m.testimonial_3_quote(),
 			role: m.testimonial_3_role(),
-			initial: "S",
+			initial: "A",
 		},
 	];
 	return (
