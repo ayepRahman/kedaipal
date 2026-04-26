@@ -8,12 +8,14 @@ export function Faq() {
 	const [openIndex, setOpenIndex] = useState<number | null>(0);
 	const faqItems = [
 		{ q: m.faq_q_1(), a: m.faq_a_1() },
+		{ q: m.faq_q_9(), a: m.faq_a_9() },
 		{ q: m.faq_q_2(), a: m.faq_a_2() },
 		{ q: m.faq_q_3(), a: m.faq_a_3() },
 		{ q: m.faq_q_4(), a: m.faq_a_4() },
 		{ q: m.faq_q_5(), a: m.faq_a_5() },
 		{ q: m.faq_q_6(), a: m.faq_a_6() },
 		{ q: m.faq_q_7(), a: m.faq_a_7() },
+		{ q: m.faq_q_10(), a: m.faq_a_10() },
 		{ q: m.faq_q_8(), a: m.faq_a_8() },
 	];
 	return (

@@ -1,5 +1,6 @@
 import {
 	BarChart3,
+	BellRing,
 	MessageCircle,
 	Package,
 	Sparkles,
@@ -11,17 +12,22 @@ import { FadeIn } from "./fade-in";
 
 export function FeatureGrid() {
 	const features = [
-		{ icon: Store, title: m.feature_1_title(), body: m.feature_1_body() },
 		{
 			icon: MessageCircle,
 			title: m.feature_2_title(),
 			body: m.feature_2_body(),
 		},
 		{
+			icon: BellRing,
+			title: m.feature_7_title(),
+			body: m.feature_7_body(),
+		},
+		{
 			icon: BarChart3,
 			title: m.feature_3_title(),
 			body: m.feature_3_body(),
 		},
+		{ icon: Store, title: m.feature_1_title(), body: m.feature_1_body() },
 		{ icon: Package, title: m.feature_4_title(), body: m.feature_4_body() },
 		{ icon: Truck, title: m.feature_5_title(), body: m.feature_5_body() },
 		{
