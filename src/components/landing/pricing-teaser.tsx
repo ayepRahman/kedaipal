@@ -33,6 +33,9 @@ export function PricingTeaser() {
 					<p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
 						{m.pricing_sub()}
 					</p>
+					<p className="mx-auto mt-3 max-w-xl text-sm font-medium text-foreground">
+						{m.pricing_no_lockin()}
+					</p>
 					<div className="mx-auto mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2">
 						{includes.map((item) => (
 							<div
