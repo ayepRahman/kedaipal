@@ -18,7 +18,7 @@ function LanguageSwitcher() {
 			aria-label={m.lang_switcher_label()}
 		>
 			<Globe />
-			<span className="hidden sm:inline">{current === "ms" ? "EN" : "BM"}</span>
+			<span>{current === "ms" ? "EN" : "BM"}</span>
 		</Button>
 	);
 }
