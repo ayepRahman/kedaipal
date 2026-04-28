@@ -35,6 +35,23 @@ export type SettingsWaPhoneFormValues = z.input<
 	typeof settingsWaPhoneFormSchema
 >;
 
+// Notification email — empty string allowed (clears the field). When non-empty
+// it must look like an email. Mirrors `convex/lib/slug.ts` assertValidEmail.
+export const settingsNotifyEmailFormSchema = z.object({
+	notifyEmail: z
+		.string()
+		.transform((s) => s.trim())
+		.refine(
+			(s) => s.length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s),
+			"Email must look like name@example.com",
+		)
+		.refine((s) => s.length <= 254, "Email is too long"),
+});
+
+export type SettingsNotifyEmailFormValues = z.input<
+	typeof settingsNotifyEmailFormSchema
+>;
+
 // Customer name on checkout — always a string (empty allowed); only the
 // length is constrained. We treat empty/whitespace as "no name supplied"
 // at submit time.

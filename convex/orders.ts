@@ -200,10 +200,10 @@ export const create = mutation({
 			createdAt: now,
 		});
 
-		// Fire-and-forget WhatsApp alert to the retailer about the new order.
+		// Fire-and-forget email alert to the retailer about the new order.
 		await ctx.scheduler.runAfter(
 			0,
-			internal.whatsapp.notifyRetailerOrderAlert,
+			internal.email.notifyRetailerOrderAlert,
 			{ orderId },
 		);
 

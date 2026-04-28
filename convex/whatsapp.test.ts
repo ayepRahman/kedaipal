@@ -18,7 +18,11 @@ const USER = "user_wa_test";
 
 type FetchCall = { url: string; body: unknown };
 
-function installFetchMock(): { calls: FetchCall[]; restore: () => void } {
+function installFetchMock(): {
+	calls: FetchCall[];
+	waCalls: () => FetchCall[];
+	restore: () => void;
+} {
 	const calls: FetchCall[] = [];
 	const original = globalThis.fetch;
 	globalThis.fetch = vi.fn(async (url: unknown, init?: RequestInit) => {
@@ -28,6 +32,10 @@ function installFetchMock(): { calls: FetchCall[]; restore: () => void } {
 	}) as unknown as typeof fetch;
 	return {
 		calls,
+		// Filter to WhatsApp Cloud API (graph.facebook.com) only — retailer-side
+		// emails (api.resend.com) are captured by the same fetch mock and would
+		// otherwise inflate counts in WA-focused tests.
+		waCalls: () => calls.filter((c) => c.url.includes("graph.facebook.com")),
 		restore: () => {
 			globalThis.fetch = original;
 		},
@@ -89,6 +97,8 @@ beforeEach(() => {
 	process.env.WHATSAPP_ACCESS_TOKEN = "test-token";
 	process.env.WHATSAPP_PHONE_NUMBER_ID = "test-phone-id";
 	process.env.WHATSAPP_VERIFY_TOKEN = "test-verify";
+	process.env.RESEND_API_KEY = "test-resend";
+	process.env.EMAIL_FROM = "Kedaipal <orders@kedaipal.test>";
 });
 
 afterEach(() => {

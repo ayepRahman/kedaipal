@@ -78,3 +78,23 @@ export function assertValidWaPhone(raw: string): string {
 	}
 	return s;
 }
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_MAX = 254;
+
+/**
+ * Normalize and validate an email address. Trims whitespace, lowercases,
+ * and applies a deliberately loose pattern — we don't try to out-validate
+ * the receiving MTA, just reject obvious typos.
+ */
+export function assertValidEmail(raw: string): string {
+	const s = raw.trim().toLowerCase();
+	if (s.length === 0) throw new Error("Email is required");
+	if (s.length > EMAIL_MAX) {
+		throw new Error(`Email must be at most ${EMAIL_MAX} characters`);
+	}
+	if (!EMAIL_PATTERN.test(s)) {
+		throw new Error("Email must look like name@example.com");
+	}
+	return s;
+}

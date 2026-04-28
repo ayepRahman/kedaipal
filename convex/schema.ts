@@ -12,6 +12,12 @@ export default defineSchema({
 		slug: v.string(),
 		storeName: v.string(),
 		waPhone: v.optional(v.string()),
+		// Email address for retailer-facing operational notifications
+		// (new orders, payment claims, etc.). Independent of the Clerk auth
+		// email so retailers can route alerts to a shared ops inbox.
+		// When unset, the retailer simply receives no email notifications —
+		// behaviour mirrors the WhatsApp waPhone field above.
+		notifyEmail: v.optional(v.string()),
 		// Convex storage ID for the store's logo. Public — surfaced on the
 		// storefront header, dashboard hero, and as the OG image fallback.
 		logoStorageId: v.optional(v.string()),

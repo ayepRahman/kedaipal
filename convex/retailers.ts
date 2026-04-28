@@ -64,6 +64,7 @@ import {
 	type SupportedCurrency,
 } from "./lib/currency";
 import {
+	assertValidEmail,
 	assertValidSlug,
 	assertValidStoreName,
 	assertValidWaPhone,
@@ -133,6 +134,7 @@ type RetailerPublic = {
 	slug: string;
 	storeName: string;
 	waPhone?: string;
+	notifyEmail?: string;
 	checkoutPhone?: string;
 	logoStorageId?: string;
 	logoUrl?: string;
@@ -170,6 +172,7 @@ async function loadRetailerForUser(
 		slug: row.slug,
 		storeName: row.storeName,
 		waPhone: row.waPhone,
+		notifyEmail: row.notifyEmail,
 		logoStorageId: row.logoStorageId,
 		logoUrl,
 		currency: (row.currency as SupportedCurrency) ?? DEFAULT_CURRENCY,
@@ -327,7 +330,9 @@ export const createRetailer = mutation({
 		waPhone: v.optional(v.string()),
 	},
 	handler: async (ctx, args): Promise<{ slug: string }> => {
-		const userId = await requireUserId(ctx);
+		const identity = await ctx.auth.getUserIdentity();
+		if (!identity) throw new Error("Not authenticated");
+		const userId = identity.subject;
 		let storeName: string;
 		let slug: string;
 		let waPhone: string | undefined;
@@ -335,6 +340,20 @@ export const createRetailer = mutation({
 		try { slug = assertValidSlug(args.slug); } catch (err) { throw new ConvexError((err as Error).message); }
 		if (args.waPhone && args.waPhone.trim().length > 0) {
 			try { waPhone = assertValidWaPhone(args.waPhone); } catch (err) { throw new ConvexError((err as Error).message); }
+		}
+
+		// Prefill notifyEmail from Clerk identity if available. Swallow validation
+		// errors so a malformed Clerk email never blocks onboarding — the retailer
+		// can fix it via settings later.
+		let notifyEmail: string | undefined;
+		const identityEmail =
+			typeof identity.email === "string" ? identity.email : undefined;
+		if (identityEmail && identityEmail.trim().length > 0) {
+			try {
+				notifyEmail = assertValidEmail(identityEmail);
+			} catch {
+				notifyEmail = undefined;
+			}
 		}
 
 		const existing = await ctx.db
@@ -370,6 +389,7 @@ export const createRetailer = mutation({
 			slug,
 			storeName,
 			waPhone,
+			notifyEmail,
 			currency: DEFAULT_CURRENCY,
 			channel: "whatsapp",
 			createdAt: now,
@@ -388,6 +408,7 @@ export const updateSettings = mutation({
 	args: {
 		storeName: v.optional(v.string()),
 		waPhone: v.optional(v.string()),
+		notifyEmail: v.optional(v.string()),
 		currency: v.optional(v.string()),
 		locale: v.optional(v.union(v.literal("en"), v.literal("ms"))),
 		messageTemplates: v.optional(messageTemplatesValidator),
@@ -406,6 +427,7 @@ export const updateSettings = mutation({
 		const patch: Partial<{
 			storeName: string;
 			waPhone: string | undefined;
+			notifyEmail: string | undefined;
 			logoStorageId: string | undefined;
 			currency: SupportedCurrency;
 			locale: Locale;
@@ -422,6 +444,13 @@ export const updateSettings = mutation({
 				try { patch.waPhone = assertValidWaPhone(args.waPhone); } catch (err) { throw new ConvexError((err as Error).message); }
 			} else {
 				patch.waPhone = undefined;
+			}
+		}
+		if (args.notifyEmail !== undefined) {
+			if (args.notifyEmail.trim().length > 0) {
+				try { patch.notifyEmail = assertValidEmail(args.notifyEmail); } catch (err) { throw new ConvexError((err as Error).message); }
+			} else {
+				patch.notifyEmail = undefined;
 			}
 		}
 		if (args.currency !== undefined) {
@@ -445,6 +474,46 @@ export const updateSettings = mutation({
 
 		await ctx.db.patch(retailer._id, patch);
 		return { ok: true };
+	},
+});
+
+/**
+ * Idempotent self-heal: if the signed-in user's retailer has no notifyEmail
+ * yet, copy it from the Clerk identity email. Called once from the dashboard
+ * on first load so retailers created before notifyEmail existed get
+ * auto-populated without manual settings work.
+ *
+ * Returns whether a backfill happened so the caller can avoid re-firing.
+ */
+export const ensureNotifyEmailFromIdentity = mutation({
+	args: {},
+	handler: async (ctx): Promise<{ updated: boolean }> => {
+		const identity = await ctx.auth.getUserIdentity();
+		if (!identity) return { updated: false };
+		const retailer = await ctx.db
+			.query("retailers")
+			.withIndex("by_user", (q) => q.eq("userId", identity.subject))
+			.first();
+		if (!retailer) return { updated: false };
+		if (retailer.notifyEmail && retailer.notifyEmail.trim().length > 0) {
+			return { updated: false };
+		}
+		const identityEmail =
+			typeof identity.email === "string" ? identity.email : undefined;
+		if (!identityEmail || identityEmail.trim().length === 0) {
+			return { updated: false };
+		}
+		let normalized: string;
+		try {
+			normalized = assertValidEmail(identityEmail);
+		} catch {
+			return { updated: false };
+		}
+		await ctx.db.patch(retailer._id, {
+			notifyEmail: normalized,
+			updatedAt: Date.now(),
+		});
+		return { updated: true };
 	},
 });
 
