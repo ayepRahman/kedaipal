@@ -4,13 +4,17 @@ import {
 	CheckCircle,
 	Clock,
 	ExternalLink,
+	MapPin,
 	Package,
+	Pencil,
 	Store,
 	Truck,
 	XCircle,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { api } from "../../convex/_generated/api";
+import { AddressEditDialog } from "../components/storefront/address-edit-dialog";
+import { DeliveryAddressDisplay } from "../components/storefront/delivery-address-display";
 import { Skeleton } from "../components/ui/skeleton";
 import { getConvexHttpClient, SITE_URL } from "../lib/convex-server";
 import { formatPrice } from "../lib/format";
@@ -157,6 +161,7 @@ function TrackingSkeleton() {
 function TrackingRoute() {
 	const { shortId } = Route.useParams();
 	const order = useQuery(api.orders.get, { shortId });
+	const [editingAddress, setEditingAddress] = useState(false);
 
 	if (order === undefined) {
 		return <TrackingSkeleton />;
@@ -170,6 +175,7 @@ function TrackingRoute() {
 	const statusConfig = getStatusConfig(deliveryMethod);
 	const config = statusConfig[order.status];
 	const isCancelled = order.status === "cancelled";
+	const canEditAddress = order.status === "pending" && !isSelfCollect;
 
 	return (
 		<main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-12 pt-10">
@@ -256,6 +262,44 @@ function TrackingRoute() {
 				</a>
 			) : null}
 
+			{/* Delivery address — shown for delivery orders that have an address */}
+			{!isSelfCollect && order.deliveryAddress ? (
+				<section className="mt-6 flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+					<div className="flex items-center justify-between">
+						<p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+							Deliver to
+						</p>
+						{canEditAddress ? (
+							<button
+								type="button"
+								onClick={() => setEditingAddress(true)}
+								className="flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+							>
+								<Pencil className="size-3" />
+								Edit
+							</button>
+						) : null}
+					</div>
+					<DeliveryAddressDisplay address={order.deliveryAddress} />
+					{order.deliveryAddress.mapsUrl ? (
+						<a
+							href={order.deliveryAddress.mapsUrl}
+							target="_blank"
+							rel="noreferrer"
+							className="flex items-center gap-1.5 self-start text-xs font-medium text-accent underline-offset-2 hover:underline"
+						>
+							<MapPin className="size-3.5" />
+							Open pinned location
+						</a>
+					) : null}
+					{!canEditAddress ? (
+						<p className="text-xs text-muted-foreground">
+							Contact the store to change this address.
+						</p>
+					) : null}
+				</section>
+			) : null}
+
 			{/* Delivery method */}
 			<div className="mt-4 flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-sm font-medium text-muted-foreground">
 				{isSelfCollect ? (
@@ -265,6 +309,13 @@ function TrackingRoute() {
 				)}
 				{isSelfCollect ? "Self Collect" : "Delivery"}
 			</div>
+
+			<AddressEditDialog
+				open={editingAddress}
+				onClose={() => setEditingAddress(false)}
+				shortId={order.shortId}
+				currentAddress={order.deliveryAddress}
+			/>
 
 			{/* Items */}
 			<section className="mt-6 flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">

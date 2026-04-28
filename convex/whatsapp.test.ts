@@ -71,6 +71,12 @@ async function createPendingOrder(
 		currency: "MYR",
 		channel: "whatsapp",
 		customer: { name: "Ali", waPhone: "60123456789" },
+		deliveryAddress: {
+			line1: "12 Jln Mawar 3",
+			city: "Petaling Jaya",
+			state: "Selangor",
+			postcode: "47301",
+		},
 	});
 	return shortId;
 }

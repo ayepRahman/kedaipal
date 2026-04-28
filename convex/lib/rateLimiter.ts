@@ -9,6 +9,10 @@ import { components } from "../_generated/api";
  *   then refills at 30/min steady state.
  * - `productWrite`: authenticated retailer mutations. Keyed by Clerk subject so
  *   a single user cannot bulk-trash inventory.
+ * - `addressUpdate`: public mutation that lets a shopper edit their delivery
+ *   address while the order is still pending. Keyed by shortId so abuse on
+ *   one order can't starve others. Token bucket allows a small burst then
+ *   refills at 5/min steady state — typical edits are 1-2 per shopper.
  */
 export const rateLimiter = new RateLimiter(components.rateLimiter, {
 	orderCreate: {
@@ -29,5 +33,11 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
 		rate: 5, // beta: tightened from 20
 		period: MINUTE,
 		capacity: 2,
+	},
+	addressUpdate: {
+		kind: "token bucket",
+		rate: 5,
+		period: MINUTE,
+		capacity: 3,
 	},
 });

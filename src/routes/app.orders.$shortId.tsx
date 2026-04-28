@@ -2,7 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import {
 	ChevronLeft,
+	Copy,
 	ExternalLink,
+	MapPin,
 	MessageCircle,
 	Package,
 	Truck,
@@ -11,6 +13,10 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
+import {
+	DeliveryAddressDisplay,
+	formatAddressInline,
+} from "../components/storefront/delivery-address-display";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
 import { convexErrorMessage, formatPrice } from "../lib/format";
@@ -254,6 +260,53 @@ function OrderDetailRoute() {
 					</span>
 				</div>
 			</section>
+
+			{/* Delivery address (delivery orders only) */}
+			{!isSelfCollect && order.deliveryAddress ? (
+				<section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+					<div className="flex items-center justify-between">
+						<p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+							Delivery Address
+						</p>
+						<div className="flex items-center gap-1">
+							<button
+								type="button"
+								onClick={() => {
+									if (!order.deliveryAddress) return;
+									const text = formatAddressInline(order.deliveryAddress);
+									navigator.clipboard
+										.writeText(text)
+										.then(() => toast.success("Address copied"))
+										.catch(() =>
+											toast.error("Couldn't copy — please copy manually"),
+										);
+								}}
+								className="flex h-9 items-center gap-1 rounded-full px-3 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+								aria-label="Copy address"
+							>
+								<Copy className="size-3.5" />
+								Copy
+							</button>
+							<a
+								href={
+									order.deliveryAddress.mapsUrl ??
+									`https://maps.google.com/?q=${encodeURIComponent(
+										formatAddressInline(order.deliveryAddress),
+									)}`
+								}
+								target="_blank"
+								rel="noreferrer"
+								className="flex h-9 items-center gap-1 rounded-full px-3 text-xs font-medium text-accent hover:bg-accent/10"
+								aria-label="Open in Maps"
+							>
+								<MapPin className="size-3.5" />
+								Maps
+							</a>
+						</div>
+					</div>
+					<DeliveryAddressDisplay address={order.deliveryAddress} />
+				</section>
+			) : null}
 
 			{/* Carrier tracking */}
 			{showCarrierSection ? (

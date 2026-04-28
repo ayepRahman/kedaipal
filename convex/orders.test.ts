@@ -63,6 +63,13 @@ async function getProductStock(
 
 const customer = { name: "Ali", waPhone: "60123456789" };
 
+const validAddress = {
+	line1: "12 Jln Mawar 3",
+	city: "Petaling Jaya",
+	state: "Selangor",
+	postcode: "47301",
+};
+
 describe("orders", () => {
 	test("create returns shortId in ORD-XXXX format", async () => {
 		const t = setup();
@@ -74,6 +81,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer,
+			deliveryAddress: validAddress,
 		});
 		expect(shortId).toMatch(/^ORD-[A-Z2-9]{4}$/);
 	});
@@ -95,6 +103,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer,
+			deliveryAddress: validAddress,
 		});
 		const order = await t.query(api.orders.get, { shortId });
 		expect(order?.subtotal).toBe(35000);
@@ -113,6 +122,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer,
+			deliveryAddress: validAddress,
 		});
 		// Mutate product price after order creation.
 		const asA = t.withIdentity({ subject: USER_A });
@@ -134,6 +144,7 @@ describe("orders", () => {
 				currency: "MYR",
 				channel: "whatsapp",
 				customer,
+				deliveryAddress: validAddress,
 			}),
 		).rejects.toThrow(/does not belong/);
 	});
@@ -152,6 +163,7 @@ describe("orders", () => {
 				currency: "MYR",
 				channel: "whatsapp",
 				customer,
+				deliveryAddress: validAddress,
 			}),
 		).rejects.toThrow(/not available/);
 	});
@@ -166,6 +178,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer,
+			deliveryAddress: validAddress,
 		});
 		const order = await t.query(api.orders.get, { shortId });
 		const events = await t.run(async (ctx) =>
@@ -188,6 +201,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer,
+			deliveryAddress: validAddress,
 		});
 		const order = await t.query(api.orders.get, { shortId });
 		const asA = t.withIdentity({ subject: USER_A });
@@ -218,6 +232,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer,
+			deliveryAddress: validAddress,
 		});
 		const order = await t.query(api.orders.get, { shortId });
 		const asB = t.withIdentity({ subject: USER_B });
@@ -241,6 +256,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer,
+			deliveryAddress: validAddress,
 		});
 		const r2 = await t.mutation(api.orders.create, {
 			retailerId: retailer._id,
@@ -248,6 +264,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer,
+			deliveryAddress: validAddress,
 		});
 		await t.mutation(api.orders.create, {
 			retailerId: retailer._id,
@@ -255,6 +272,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer,
+			deliveryAddress: validAddress,
 		});
 
 		const o1 = await t.query(api.orders.get, { shortId: r1.shortId });
@@ -289,6 +307,7 @@ describe("orders", () => {
 				currency: "SGD",
 				channel: "whatsapp",
 				customer,
+				deliveryAddress: validAddress,
 			}),
 		).rejects.toThrow(/Currency mismatch/);
 	});
@@ -303,6 +322,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer: { name: "Ali" },
+			deliveryAddress: validAddress,
 		});
 		expect(shortId).toBeTruthy();
 	});
@@ -318,6 +338,7 @@ describe("orders", () => {
 				currency: "MYR",
 				channel: "whatsapp",
 				customer: { name: "Ali", waPhone: "abc" },
+				deliveryAddress: validAddress,
 			}),
 		).rejects.toThrow(/WhatsApp number/);
 	});
@@ -334,6 +355,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer,
+			deliveryAddress: validAddress,
 		});
 		expect(await getProductStock(t, productId)).toBe(7);
 	});
@@ -351,6 +373,7 @@ describe("orders", () => {
 				currency: "MYR",
 				channel: "whatsapp",
 				customer,
+				deliveryAddress: validAddress,
 			}),
 		).rejects.toThrow(/in stock/);
 		// Stock unchanged
@@ -372,6 +395,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer,
+			deliveryAddress: validAddress,
 		});
 		expect(await getProductStock(t, productId)).toBe(5);
 	});
@@ -398,6 +422,7 @@ describe("orders", () => {
 				currency: "MYR",
 				channel: "whatsapp",
 				customer,
+				deliveryAddress: validAddress,
 			}),
 		).rejects.toThrow(/Currency mismatch/);
 		// First product's stock must NOT have been decremented
@@ -417,6 +442,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer,
+			deliveryAddress: validAddress,
 		});
 		expect(await getProductStock(t, productId)).toBe(6);
 		const order = await t.query(api.orders.get, { shortId });
@@ -440,6 +466,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer,
+			deliveryAddress: validAddress,
 		});
 		const order = await t.query(api.orders.get, { shortId });
 		const asA = t.withIdentity({ subject: USER_A });
@@ -467,6 +494,7 @@ describe("orders", () => {
 			currency: "MYR",
 			channel: "whatsapp",
 			customer,
+			deliveryAddress: validAddress,
 		});
 		const order = await t.query(api.orders.get, { shortId });
 		const asA = t.withIdentity({ subject: USER_A });
@@ -482,5 +510,196 @@ describe("orders", () => {
 			});
 			expect(await getProductStock(t, productId)).toBe(7);
 		}
+	});
+
+	test("create with delivery method and no address rejects", async () => {
+		const t = setup();
+		const retailer = await seedRetailer(t, USER_A);
+		const productId = await seedProduct(t, USER_A, retailer._id);
+		await expect(
+			t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryMethod: "delivery",
+			}),
+		).rejects.toThrow(/Delivery address is required/);
+	});
+
+	test("create with self_collect and address rejects", async () => {
+		const t = setup();
+		const retailer = await seedRetailer(t, USER_A);
+		const productId = await seedProduct(t, USER_A, retailer._id);
+		await expect(
+			t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryMethod: "self_collect",
+				deliveryAddress: validAddress,
+			}),
+		).rejects.toThrow(/should not include an address/);
+	});
+
+	test("create persists sanitized address with whitespace trimmed", async () => {
+		const t = setup();
+		const retailer = await seedRetailer(t, USER_A);
+		const productId = await seedProduct(t, USER_A, retailer._id);
+		const { shortId } = await t.mutation(api.orders.create, {
+			retailerId: retailer._id,
+			items: [{ productId, quantity: 1 }],
+			currency: "MYR",
+			channel: "whatsapp",
+			customer,
+			deliveryAddress: {
+				line1: "  12 Jln Mawar 3  ",
+				line2: "   ",
+				city: "Petaling Jaya",
+				state: "Selangor",
+				postcode: "47301",
+				notes: "  Pintu pagar biru  ",
+			},
+		});
+		const order = await t.query(api.orders.get, { shortId });
+		expect(order?.deliveryAddress?.line1).toBe("12 Jln Mawar 3");
+		expect(order?.deliveryAddress?.line2).toBeUndefined();
+		expect(order?.deliveryAddress?.notes).toBe("Pintu pagar biru");
+	});
+
+	test("create rejects invalid postcode", async () => {
+		const t = setup();
+		const retailer = await seedRetailer(t, USER_A);
+		const productId = await seedProduct(t, USER_A, retailer._id);
+		await expect(
+			t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryAddress: { ...validAddress, postcode: "abcde" },
+			}),
+		).rejects.toThrow(/Postcode must be 5 digits/);
+	});
+
+	test("create rejects unknown state", async () => {
+		const t = setup();
+		const retailer = await seedRetailer(t, USER_A);
+		const productId = await seedProduct(t, USER_A, retailer._id);
+		await expect(
+			t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryAddress: { ...validAddress, state: "Atlantis" },
+			}),
+		).rejects.toThrow(/Unknown state/);
+	});
+
+	test("updateDeliveryAddress patches address while pending", async () => {
+		const t = setup();
+		const retailer = await seedRetailer(t, USER_A);
+		const productId = await seedProduct(t, USER_A, retailer._id);
+		const { shortId } = await t.mutation(api.orders.create, {
+			retailerId: retailer._id,
+			items: [{ productId, quantity: 1 }],
+			currency: "MYR",
+			channel: "whatsapp",
+			customer,
+			deliveryAddress: validAddress,
+		});
+		const newAddress = {
+			line1: "99 Jln Cempaka",
+			city: "Shah Alam",
+			state: "Selangor",
+			postcode: "40000",
+		};
+		await t.mutation(api.orders.updateDeliveryAddress, {
+			shortId,
+			deliveryAddress: newAddress,
+		});
+		const order = await t.query(api.orders.get, { shortId });
+		expect(order?.deliveryAddress?.line1).toBe("99 Jln Cempaka");
+		expect(order?.deliveryAddress?.postcode).toBe("40000");
+	});
+
+	test("updateDeliveryAddress on confirmed order throws", async () => {
+		const t = setup();
+		const retailer = await seedRetailer(t, USER_A);
+		const productId = await seedProduct(t, USER_A, retailer._id);
+		const { shortId } = await t.mutation(api.orders.create, {
+			retailerId: retailer._id,
+			items: [{ productId, quantity: 1 }],
+			currency: "MYR",
+			channel: "whatsapp",
+			customer,
+			deliveryAddress: validAddress,
+		});
+		const order = await t.query(api.orders.get, { shortId });
+		const asA = t.withIdentity({ subject: USER_A });
+		await asA.mutation(api.orders.updateStatus, {
+			orderId: order!._id,
+			status: "confirmed",
+		});
+		await expect(
+			t.mutation(api.orders.updateDeliveryAddress, {
+				shortId,
+				deliveryAddress: validAddress,
+			}),
+		).rejects.toThrow(/while the order is pending/);
+	});
+
+	test("updateDeliveryAddress on self_collect order throws", async () => {
+		const t = setup();
+		const retailer = await seedRetailer(t, USER_A);
+		const productId = await seedProduct(t, USER_A, retailer._id);
+		const { shortId } = await t.mutation(api.orders.create, {
+			retailerId: retailer._id,
+			items: [{ productId, quantity: 1 }],
+			currency: "MYR",
+			channel: "whatsapp",
+			customer,
+			deliveryMethod: "self_collect",
+		});
+		await expect(
+			t.mutation(api.orders.updateDeliveryAddress, {
+				shortId,
+				deliveryAddress: validAddress,
+			}),
+		).rejects.toThrow(/Self-collect orders/);
+	});
+
+	test("updateDeliveryAddress writes an audit event", async () => {
+		const t = setup();
+		const retailer = await seedRetailer(t, USER_A);
+		const productId = await seedProduct(t, USER_A, retailer._id);
+		const { shortId } = await t.mutation(api.orders.create, {
+			retailerId: retailer._id,
+			items: [{ productId, quantity: 1 }],
+			currency: "MYR",
+			channel: "whatsapp",
+			customer,
+			deliveryAddress: validAddress,
+		});
+		const order = await t.query(api.orders.get, { shortId });
+		await t.mutation(api.orders.updateDeliveryAddress, {
+			shortId,
+			deliveryAddress: { ...validAddress, line1: "new address line" },
+		});
+		const events = await t.run(async (ctx) =>
+			ctx.db
+				.query("orderEvents")
+				.withIndex("by_order", (q) => q.eq("orderId", order!._id))
+				.collect(),
+		);
+		const updateEvent = events.find((e) => e.note === "address_updated");
+		expect(updateEvent).toBeTruthy();
+		expect(updateEvent?.status).toBe("pending");
 	});
 });

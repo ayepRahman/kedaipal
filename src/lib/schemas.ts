@@ -40,12 +40,124 @@ export type SettingsWaPhoneFormValues = z.input<
 // at submit time.
 export const deliveryMethodSchema = z.enum(["delivery", "self_collect"]);
 
-export const checkoutFormSchema = z.object({
-	name: z.string().max(60, "Name must be at most 60 characters"),
-	deliveryMethod: deliveryMethodSchema,
+// Malaysia-only for v1. Mirrors `convex/lib/address.ts` MY_STATES.
+export const MY_STATES = [
+	"Johor",
+	"Kedah",
+	"Kelantan",
+	"Melaka",
+	"Negeri Sembilan",
+	"Pahang",
+	"Perak",
+	"Perlis",
+	"Pulau Pinang",
+	"Sabah",
+	"Sarawak",
+	"Selangor",
+	"Terengganu",
+	"WP Kuala Lumpur",
+	"WP Labuan",
+	"WP Putrajaya",
+] as const;
+
+export type MyState = (typeof MY_STATES)[number];
+
+// Strict schema applied only when deliveryMethod === "delivery". Mirrors the
+// server-side rules in `convex/lib/address.ts` so we surface field-level
+// errors before round-tripping to Convex. Also reused as the standalone form
+// schema on the tracking-page edit dialog.
+export const strictAddressSchema = z.object({
+	line1: z
+		.string()
+		.trim()
+		.min(3, "Address line 1 must be at least 3 characters")
+		.max(120, "Address line 1 must be at most 120 characters"),
+	line2: z
+		.string()
+		.trim()
+		.max(120, "Address line 2 must be at most 120 characters")
+		.optional()
+		.or(z.literal("")),
+	city: z
+		.string()
+		.trim()
+		.min(2, "City must be at least 2 characters")
+		.max(60, "City must be at most 60 characters"),
+	state: z.enum(MY_STATES, { error: () => "Select a state" }),
+	postcode: z.string().regex(/^\d{5}$/, "Postcode must be 5 digits"),
+	notes: z
+		.string()
+		.max(200, "Notes must be at most 200 characters")
+		.optional()
+		.or(z.literal("")),
+	mapsUrl: z
+		.string()
+		.url("Maps URL must be a valid URL")
+		.optional()
+		.or(z.literal("")),
 });
 
+// Loose form-state shape: every field is always present as a string so
+// TanStack Form can mount the inputs whether delivery or self_collect is
+// selected. Strict validation runs only when delivery is chosen.
+export const addressFormFieldsSchema = z.object({
+	line1: z.string(),
+	line2: z.string(),
+	city: z.string(),
+	state: z.string(),
+	postcode: z.string(),
+	notes: z.string(),
+	mapsUrl: z.string(),
+});
+
+export const checkoutFormSchema = z
+	.object({
+		name: z.string().max(60, "Name must be at most 60 characters"),
+		deliveryMethod: deliveryMethodSchema,
+		address: addressFormFieldsSchema,
+	})
+	.superRefine((val, ctx) => {
+		if (val.deliveryMethod !== "delivery") return;
+		const result = strictAddressSchema.safeParse(val.address);
+		if (result.success) return;
+		for (const issue of result.error.issues) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: issue.message,
+				path: ["address", ...issue.path],
+			});
+		}
+	});
+
 export type CheckoutFormValues = z.input<typeof checkoutFormSchema>;
+export type CheckoutAddressValues = z.input<typeof addressFormFieldsSchema>;
+
+// Standalone form schema for the tracking-page edit dialog: validates the
+// address fields strictly via superRefine but keeps a loose form-state shape
+// so TanStack Form mounts inputs even when fields are momentarily empty.
+export const addressEditFormSchema = addressFormFieldsSchema.superRefine(
+	(val, ctx) => {
+		const result = strictAddressSchema.safeParse(val);
+		if (result.success) return;
+		for (const issue of result.error.issues) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: issue.message,
+				path: issue.path,
+			});
+		}
+	},
+);
+
+export const emptyAddress: CheckoutAddressValues = {
+	line1: "",
+	line2: "",
+	city: "",
+	state: "",
+	postcode: "",
+	notes: "",
+	mapsUrl: "",
+};
 
 // Product form. Price is entered as a major-unit decimal string (e.g. "120" or
 // "120.50") and transformed to integer minor units (sen) for storage. Stock is

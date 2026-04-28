@@ -17,7 +17,7 @@ import { TextareaField } from "./textarea-field";
 export const { fieldContext, formContext, useFieldContext } =
 	createFormHookContexts();
 
-export const { useAppForm } = createFormHook({
+export const { useAppForm, withFieldGroup } = createFormHook({
 	fieldContext,
 	formContext,
 	fieldComponents: {

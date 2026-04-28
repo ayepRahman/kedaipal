@@ -124,6 +124,20 @@ export default defineSchema({
 		deliveryMethod: v.optional(
 			v.union(v.literal("delivery"), v.literal("self_collect")),
 		),
+		// Structured shipping address. Required when deliveryMethod === "delivery"
+		// and forbidden when "self_collect" — invariant enforced in orders.create.
+		// Validated/sanitized server-side via convex/lib/address.ts.
+		deliveryAddress: v.optional(
+			v.object({
+				line1: v.string(),
+				line2: v.optional(v.string()),
+				city: v.string(),
+				state: v.string(),
+				postcode: v.string(),
+				notes: v.optional(v.string()),
+				mapsUrl: v.optional(v.string()),
+			}),
+		),
 		// Optional external carrier tracking URL set by the retailer when marking
 		// shipped. Surfaced on the customer tracking page and included in the
 		// WhatsApp shipped notification. Only relevant for delivery orders.

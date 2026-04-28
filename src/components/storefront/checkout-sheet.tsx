@@ -6,9 +6,16 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { UseCart } from "../../hooks/useCart";
 import { convexErrorMessage, formatPrice } from "../../lib/format";
-import { checkoutFormSchema } from "../../lib/schemas";
+import {
+	type CheckoutAddressValues,
+	checkoutFormSchema,
+	emptyAddress,
+} from "../../lib/schemas";
 import { useAppForm } from "../forms/form";
 import { Button } from "../ui/button";
+import { AddressFieldset } from "./address-fieldset";
+
+const ADDRESS_STORAGE_KEY = "kedaipal:lastAddress";
 
 interface CheckoutSheetProps {
 	open: boolean;
@@ -19,11 +26,76 @@ interface CheckoutSheetProps {
 	checkoutPhone: string | undefined;
 }
 
+interface SanitizedDeliveryAddress {
+	line1: string;
+	line2?: string;
+	city: string;
+	state: string;
+	postcode: string;
+	notes?: string;
+	mapsUrl?: string;
+}
+
+function loadSavedAddress(): CheckoutAddressValues {
+	if (typeof window === "undefined") return emptyAddress;
+	try {
+		const raw = window.localStorage.getItem(ADDRESS_STORAGE_KEY);
+		if (!raw) return emptyAddress;
+		const parsed = JSON.parse(raw);
+		return {
+			line1: typeof parsed.line1 === "string" ? parsed.line1 : "",
+			line2: typeof parsed.line2 === "string" ? parsed.line2 : "",
+			city: typeof parsed.city === "string" ? parsed.city : "",
+			state: typeof parsed.state === "string" ? parsed.state : "",
+			postcode: typeof parsed.postcode === "string" ? parsed.postcode : "",
+			notes: typeof parsed.notes === "string" ? parsed.notes : "",
+			mapsUrl: typeof parsed.mapsUrl === "string" ? parsed.mapsUrl : "",
+		};
+	} catch {
+		return emptyAddress;
+	}
+}
+
+function saveAddress(addr: CheckoutAddressValues): void {
+	if (typeof window === "undefined") return;
+	try {
+		window.localStorage.setItem(ADDRESS_STORAGE_KEY, JSON.stringify(addr));
+	} catch {
+		// Quota errors / privacy mode — silently ignore.
+	}
+}
+
+function sanitizeAddress(
+	raw: CheckoutAddressValues,
+): SanitizedDeliveryAddress {
+	const line2 = raw.line2.trim();
+	const notes = raw.notes.trim();
+	const mapsUrl = raw.mapsUrl.trim();
+	return {
+		line1: raw.line1.trim(),
+		line2: line2.length > 0 ? line2 : undefined,
+		city: raw.city.trim(),
+		state: raw.state,
+		postcode: raw.postcode.trim(),
+		notes: notes.length > 0 ? notes : undefined,
+		mapsUrl: mapsUrl.length > 0 ? mapsUrl : undefined,
+	};
+}
+
+function formatAddressOneLine(addr: SanitizedDeliveryAddress): string {
+	const parts = [addr.line1];
+	if (addr.line2) parts.push(addr.line2);
+	parts.push(`${addr.postcode} ${addr.city}`);
+	parts.push(addr.state);
+	return parts.join(", ");
+}
+
 function buildWaMessage(
 	storeName: string,
 	shortId: string,
 	cart: UseCart,
 	deliveryMethod: "delivery" | "self_collect",
+	deliveryAddress: SanitizedDeliveryAddress | undefined,
 ): string {
 	const lines: string[] = [];
 	lines.push(`Hi ${storeName}, I'd like to place this order:`);
@@ -34,9 +106,15 @@ function buildWaMessage(
 	}
 	lines.push("");
 	lines.push(`Total: ${formatPrice(cart.total, cart.currency)}`);
-	lines.push(
-		deliveryMethod === "self_collect" ? "📍 Self Collect" : "🚚 Delivery",
-	);
+	if (deliveryMethod === "self_collect") {
+		lines.push("📍 Self Collect");
+	} else if (deliveryAddress) {
+		lines.push(`🚚 Deliver to: ${formatAddressOneLine(deliveryAddress)}`);
+		if (deliveryAddress.mapsUrl) lines.push(`📍 ${deliveryAddress.mapsUrl}`);
+		if (deliveryAddress.notes) lines.push(`📝 ${deliveryAddress.notes}`);
+	} else {
+		lines.push("🚚 Delivery");
+	}
 	return lines.join("\n");
 }
 
@@ -57,6 +135,7 @@ export function CheckoutSheet({
 		defaultValues: {
 			name: "",
 			deliveryMethod: "delivery" as "delivery" | "self_collect",
+			address: loadSavedAddress(),
 		},
 		validators: { onChange: checkoutFormSchema },
 		onSubmit: async ({ value }) => {
@@ -68,6 +147,10 @@ export function CheckoutSheet({
 				);
 				return;
 			}
+			const sanitizedAddress =
+				value.deliveryMethod === "delivery"
+					? sanitizeAddress(value.address)
+					: undefined;
 			try {
 				const { shortId } = await createOrder({
 					retailerId,
@@ -81,14 +164,17 @@ export function CheckoutSheet({
 						name: value.name?.trim() || undefined,
 					},
 					deliveryMethod: value.deliveryMethod,
+					deliveryAddress: sanitizedAddress,
 				});
 				const message = buildWaMessage(
 					storeName,
 					shortId,
 					cart,
 					value.deliveryMethod,
+					sanitizedAddress,
 				);
 				const url = `https://wa.me/${checkoutPhone}?text=${encodeURIComponent(message)}`;
+				if (value.deliveryMethod === "delivery") saveAddress(value.address);
 				cart.clearCart();
 				form.reset();
 				onClose();
@@ -229,6 +315,16 @@ export function CheckoutSheet({
 										</fieldset>
 									)}
 								</form.AppField>
+
+								<form.Subscribe
+									selector={(s) => s.values.deliveryMethod}
+								>
+									{(deliveryMethod) =>
+										deliveryMethod === "delivery" ? (
+											<AddressFieldset form={form} fields="address" />
+										) : null
+									}
+								</form.Subscribe>
 							</div>
 
 							{noCheckoutPhone ? (

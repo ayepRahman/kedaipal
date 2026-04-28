@@ -3,9 +3,20 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
+import { assertValidAddress } from "./lib/address";
 import { computeOrderTotals, generateShortId } from "./lib/order";
 import { rateLimiter } from "./lib/rateLimiter";
 import { assertValidWaPhone } from "./lib/slug";
+
+const addressValidator = v.object({
+	line1: v.string(),
+	line2: v.optional(v.string()),
+	city: v.string(),
+	state: v.string(),
+	postcode: v.string(),
+	notes: v.optional(v.string()),
+	mapsUrl: v.optional(v.string()),
+});
 
 const MAX_ITEMS_PER_ORDER = 100;
 const SHORT_ID_RETRIES = 3;
@@ -52,6 +63,7 @@ export const create = mutation({
 		deliveryMethod: v.optional(
 			v.union(v.literal("delivery"), v.literal("self_collect")),
 		),
+		deliveryAddress: v.optional(addressValidator),
 	},
 	handler: async (ctx, args): Promise<{ shortId: string }> => {
 		// Rate limit FIRST — public endpoint, throttle per storefront before any DB reads.
@@ -59,6 +71,27 @@ export const create = mutation({
 			key: args.retailerId,
 			throws: true,
 		});
+
+		// Address invariant: required for delivery, forbidden for self_collect.
+		const effectiveDeliveryMethod = args.deliveryMethod ?? "delivery";
+		if (effectiveDeliveryMethod === "delivery" && !args.deliveryAddress) {
+			throw new ConvexError(
+				"Delivery address is required for delivery orders",
+			);
+		}
+		if (effectiveDeliveryMethod === "self_collect" && args.deliveryAddress) {
+			throw new ConvexError(
+				"Self-collect orders should not include an address",
+			);
+		}
+		let sanitizedAddress: ReturnType<typeof assertValidAddress> | undefined;
+		if (args.deliveryAddress) {
+			try {
+				sanitizedAddress = assertValidAddress(args.deliveryAddress);
+			} catch (err) {
+				throw new ConvexError((err as Error).message);
+			}
+		}
 
 		// Customer waPhone is optional at checkout — the WhatsApp webhook
 		// stamps it automatically when the shopper sends the order message.
@@ -155,7 +188,8 @@ export const create = mutation({
 			status: "pending",
 			channel: args.channel,
 			customer: sanitizedCustomer,
-			deliveryMethod: args.deliveryMethod ?? "delivery",
+			deliveryMethod: effectiveDeliveryMethod,
+			deliveryAddress: sanitizedAddress,
 			createdAt: now,
 			updatedAt: now,
 		});
@@ -343,6 +377,59 @@ export const setCarrierTrackingUrl = mutation({
 		await ctx.db.patch(orderId, {
 			carrierTrackingUrl: trimmed.length > 0 ? trimmed : undefined,
 			updatedAt: Date.now(),
+		});
+	},
+});
+
+/**
+ * Public mutation that lets the shopper edit their delivery address while the
+ * order is still pending. Trust model mirrors the tracking page: the shortId
+ * is the capability — anyone who knows it can edit. Once the order moves out
+ * of "pending" the address is locked and the shopper must contact the store.
+ */
+export const updateDeliveryAddress = mutation({
+	args: {
+		shortId: v.string(),
+		deliveryAddress: addressValidator,
+	},
+	handler: async (ctx, { shortId, deliveryAddress }): Promise<void> => {
+		await rateLimiter.limit(ctx, "addressUpdate", {
+			key: shortId,
+			throws: true,
+		});
+
+		const order = await ctx.db
+			.query("orders")
+			.withIndex("by_shortId", (q) => q.eq("shortId", shortId))
+			.first();
+		if (!order) throw new ConvexError("Order not found");
+
+		if (order.status !== "pending") {
+			throw new ConvexError(
+				"Address can only be edited while the order is pending",
+			);
+		}
+		if (order.deliveryMethod === "self_collect") {
+			throw new ConvexError("Self-collect orders do not have a delivery address");
+		}
+
+		let sanitized: ReturnType<typeof assertValidAddress>;
+		try {
+			sanitized = assertValidAddress(deliveryAddress);
+		} catch (err) {
+			throw new ConvexError((err as Error).message);
+		}
+
+		const now = Date.now();
+		await ctx.db.patch(order._id, {
+			deliveryAddress: sanitized,
+			updatedAt: now,
+		});
+		await ctx.db.insert("orderEvents", {
+			orderId: order._id,
+			status: "pending",
+			note: "address_updated",
+			createdAt: now,
 		});
 	},
 });
