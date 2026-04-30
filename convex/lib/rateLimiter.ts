@@ -13,6 +13,14 @@ import { components } from "../_generated/api";
  *   address while the order is still pending. Keyed by shortId so abuse on
  *   one order can't starve others. Token bucket allows a small burst then
  *   refills at 5/min steady state — typical edits are 1-2 per shopper.
+ * - `paymentClaim`: public mutation where a shopper claims they've paid for
+ *   their order. Keyed by shortId. A single shopper may legitimately re-submit
+ *   if they fix the reference or replace the screenshot, so the bucket allows
+ *   a small burst.
+ * - `proofUpload`: public mutation that mints a one-shot Convex storage upload
+ *   URL for a payment screenshot. Keyed by shortId so a single order can't
+ *   exhaust the system. Slightly tighter than paymentClaim — one upload URL
+ *   per claim attempt is the realistic ceiling.
  */
 export const rateLimiter = new RateLimiter(components.rateLimiter, {
 	orderCreate: {
@@ -39,5 +47,17 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
 		rate: 5,
 		period: MINUTE,
 		capacity: 3,
+	},
+	paymentClaim: {
+		kind: "token bucket",
+		rate: 5,
+		period: MINUTE,
+		capacity: 3,
+	},
+	proofUpload: {
+		kind: "token bucket",
+		rate: 3,
+		period: MINUTE,
+		capacity: 2,
 	},
 });

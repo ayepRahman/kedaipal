@@ -34,7 +34,7 @@ export const waCopy: Record<Locale, LocaleCopy> = {
 			const method = deliveryMethod === "self_collect"
 				? "We'll let you know when it's ready for pickup."
 				: "We'll update you when it ships.";
-			return `✅ Order ${shortId} confirmed. ${method} — ${storeName}${trackingUrl ? `\n\nTrack your order: ${trackingUrl}` : ""}${contactLine(contactPhone, "en")}`;
+			return `✅ Order ${shortId} confirmed. ${method} — ${storeName}${trackingUrl ? `\n\nTrack order & tap 'I've paid' to send receipt: ${trackingUrl}` : ""}${contactLine(contactPhone, "en")}`;
 		},
 		status: {
 			packed: ({ shortId, trackingUrl, deliveryMethod }) => {
@@ -66,7 +66,7 @@ export const waCopy: Record<Locale, LocaleCopy> = {
 			const method = deliveryMethod === "self_collect"
 				? "Kami akan maklumkan apabila sedia untuk diambil."
 				: "Kami akan maklumkan apabila dihantar.";
-			return `✅ Pesanan ${shortId} telah disahkan. ${method} — ${storeName}${trackingUrl ? `\n\nJejak pesanan anda: ${trackingUrl}` : ""}${contactLine(contactPhone, "ms")}`;
+			return `✅ Pesanan ${shortId} telah disahkan. ${method} — ${storeName}${trackingUrl ? `\n\nJejak pesanan & tekan 'I've paid' untuk hantar resit: ${trackingUrl}` : ""}${contactLine(contactPhone, "ms")}`;
 		},
 		status: {
 			packed: ({ shortId, trackingUrl, deliveryMethod }) => {
@@ -98,6 +98,49 @@ export const waCopy: Record<Locale, LocaleCopy> = {
 export function pickLocale(input: string | undefined | null): Locale {
 	if (input === "ms") return "ms";
 	return "en";
+}
+
+// ---------------------------------------------------------------------------
+// System messages — locale-aware, NOT retailer-overridable.
+//
+// Used for messages the platform must send verbatim (e.g., the transfer
+// reference instruction in the confirm reply, or the payment-received
+// notification). Kept separate from the override-able catalog so retailers
+// can't break payment matching by editing a template.
+// ---------------------------------------------------------------------------
+
+export type SystemMessageKey = "paymentReceived" | "transferReferenceLine";
+
+type SystemCopy = {
+	paymentReceived: (v: CopyVars) => string;
+	transferReferenceLine: (v: CopyVars) => string;
+};
+
+export const systemMessages: Record<Locale, SystemCopy> = {
+	en: {
+		paymentReceived: ({ shortId, storeName, trackingUrl }) =>
+			`✅ Payment received for ${shortId}. ${storeName} is preparing your order.${
+				trackingUrl ? `\n\nTrack: ${trackingUrl}` : ""
+			}`,
+		transferReferenceLine: ({ shortId }) =>
+			`Use ${shortId} as your transfer reference so we can match it.`,
+	},
+	ms: {
+		paymentReceived: ({ shortId, storeName, trackingUrl }) =>
+			`✅ Pembayaran diterima untuk ${shortId}. ${storeName} sedang menyediakan pesanan anda.${
+				trackingUrl ? `\n\nJejak: ${trackingUrl}` : ""
+			}`,
+		transferReferenceLine: ({ shortId }) =>
+			`Gunakan ${shortId} sebagai rujukan pemindahan supaya kami boleh padankan.`,
+	},
+};
+
+export function renderSystemMessage(
+	locale: Locale,
+	key: SystemMessageKey,
+	vars: CopyVars,
+): string {
+	return systemMessages[locale][key](vars);
 }
 
 // Matches ORD-XXXX where X is from the alphabet in lib/order.ts

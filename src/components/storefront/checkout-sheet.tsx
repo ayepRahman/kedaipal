@@ -65,9 +65,7 @@ function saveAddress(addr: CheckoutAddressValues): void {
 	}
 }
 
-function sanitizeAddress(
-	raw: CheckoutAddressValues,
-): SanitizedDeliveryAddress {
+function sanitizeAddress(raw: CheckoutAddressValues): SanitizedDeliveryAddress {
 	const line2 = raw.line2.trim();
 	const notes = raw.notes.trim();
 	const mapsUrl = raw.mapsUrl.trim();
@@ -316,9 +314,7 @@ export function CheckoutSheet({
 									)}
 								</form.AppField>
 
-								<form.Subscribe
-									selector={(s) => s.values.deliveryMethod}
-								>
+								<form.Subscribe selector={(s) => s.values.deliveryMethod}>
 									{(deliveryMethod) =>
 										deliveryMethod === "delivery" ? (
 											<AddressFieldset form={form} fields="address" />

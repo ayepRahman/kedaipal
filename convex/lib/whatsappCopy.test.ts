@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
 	paymentQrCaption,
 	renderPaymentInstructions,
+	renderSystemMessage,
 } from "./whatsappCopy";
 
 describe("renderPaymentInstructions", () => {
@@ -73,5 +74,54 @@ describe("renderPaymentInstructions", () => {
 	test("paymentQrCaption is locale-aware", () => {
 		expect(paymentQrCaption("en")).toBe("Scan to pay");
 		expect(paymentQrCaption("ms")).toBe("Imbas untuk bayar");
+	});
+});
+
+describe("renderSystemMessage", () => {
+	test("paymentReceived (en) includes shortId, store, tracking link", () => {
+		const out = renderSystemMessage("en", "paymentReceived", {
+			shortId: "ORD-AB23",
+			storeName: "Acme Outdoor",
+			trackingUrl: "https://kedaipal.test/track/ORD-AB23",
+		});
+		expect(out).toContain("Payment received for ORD-AB23");
+		expect(out).toContain("Acme Outdoor");
+		expect(out).toContain("https://kedaipal.test/track/ORD-AB23");
+	});
+
+	test("paymentReceived (ms) renders Bahasa Malaysia copy", () => {
+		const out = renderSystemMessage("ms", "paymentReceived", {
+			shortId: "ORD-AB23",
+			storeName: "Acme Outdoor",
+			trackingUrl: "https://kedaipal.test/track/ORD-AB23",
+		});
+		expect(out).toContain("Pembayaran diterima untuk ORD-AB23");
+		expect(out).toContain("sedang menyediakan");
+	});
+
+	test("paymentReceived omits Track block when no trackingUrl supplied", () => {
+		const out = renderSystemMessage("en", "paymentReceived", {
+			shortId: "ORD-AB23",
+			storeName: "Acme",
+		});
+		expect(out).toContain("Payment received for ORD-AB23");
+		expect(out).not.toContain("Track:");
+	});
+
+	test("transferReferenceLine is locale-aware", () => {
+		expect(
+			renderSystemMessage("en", "transferReferenceLine", {
+				shortId: "ORD-AB23",
+				storeName: "Acme",
+			}),
+		).toBe("Use ORD-AB23 as your transfer reference so we can match it.");
+		expect(
+			renderSystemMessage("ms", "transferReferenceLine", {
+				shortId: "ORD-AB23",
+				storeName: "Acme",
+			}),
+		).toBe(
+			"Gunakan ORD-AB23 sebagai rujukan pemindahan supaya kami boleh padankan.",
+		);
 	});
 });

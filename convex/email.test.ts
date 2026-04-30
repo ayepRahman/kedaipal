@@ -216,3 +216,113 @@ describe("email retailer order alert", () => {
 		fetchMock.restore();
 	});
 });
+
+describe("email payment claimed alert", () => {
+	test("sends paymentClaimed email with reference echoed in body", async () => {
+		const t = setup();
+		const fetchMock = installFetchMock();
+		const { retailerId, productId } = await seedRetailerWithEmail(t, {
+			locale: "en",
+			notifyEmail: "ops@store.test",
+		});
+		const { shortId, orderId } = await createPendingOrder(
+			t,
+			retailerId,
+			productId,
+		);
+		await t.mutation(api.orders.claimPayment, {
+			shortId,
+			reference: "TXN-9988",
+		});
+
+		await t.action(internal.email.notifyPaymentClaimed, { orderId });
+
+		const sends = fetchMock.resendCalls();
+		expect(sends).toHaveLength(1);
+		const body = sends[0].body as {
+			to: string[];
+			subject: string;
+			html: string;
+			text: string;
+		};
+		expect(body.to).toEqual(["ops@store.test"]);
+		expect(body.subject).toContain("Payment claimed");
+		expect(body.subject).toContain(shortId);
+		expect(body.text).toContain("TXN-9988");
+		expect(body.html).toContain("TXN-9988");
+		fetchMock.restore();
+	});
+
+	test("paymentClaimed email shows 'not provided' when reference is missing", async () => {
+		const t = setup();
+		const fetchMock = installFetchMock();
+		const { retailerId, productId } = await seedRetailerWithEmail(t, {
+			locale: "en",
+			notifyEmail: "ops@store.test",
+		});
+		const { shortId, orderId } = await createPendingOrder(
+			t,
+			retailerId,
+			productId,
+		);
+		await t.mutation(api.orders.claimPayment, { shortId });
+
+		await t.action(internal.email.notifyPaymentClaimed, { orderId });
+
+		const body = fetchMock.resendCalls()[0].body as {
+			text: string;
+			html: string;
+		};
+		expect(body.text).toContain("Reference: not provided");
+		expect(body.html).toContain("not provided");
+		fetchMock.restore();
+	});
+
+	test("paymentClaimed email skips silently when notifyEmail is empty", async () => {
+		const t = setup();
+		const fetchMock = installFetchMock();
+		const { retailerId, productId } = await seedRetailerWithEmail(t, {
+			locale: "en",
+			notifyEmail: undefined,
+		});
+		const { shortId, orderId } = await createPendingOrder(
+			t,
+			retailerId,
+			productId,
+		);
+		await t.mutation(api.orders.claimPayment, { shortId });
+
+		await t.action(internal.email.notifyPaymentClaimed, { orderId });
+
+		expect(fetchMock.resendCalls()).toHaveLength(0);
+		fetchMock.restore();
+	});
+
+	test("paymentClaimed email uses Bahasa Malaysia subject for ms locale", async () => {
+		const t = setup();
+		const fetchMock = installFetchMock();
+		const { retailerId, productId } = await seedRetailerWithEmail(t, {
+			locale: "ms",
+			notifyEmail: "ops@store.test",
+		});
+		const { shortId, orderId } = await createPendingOrder(
+			t,
+			retailerId,
+			productId,
+		);
+		await t.mutation(api.orders.claimPayment, {
+			shortId,
+			reference: "TXN-9988",
+		});
+
+		await t.action(internal.email.notifyPaymentClaimed, { orderId });
+
+		const body = fetchMock.resendCalls()[0].body as {
+			subject: string;
+			text: string;
+		};
+		expect(body.subject).toContain("Pembayaran diterima");
+		expect(body.text).toContain("Rujukan: TXN-9988");
+		fetchMock.restore();
+	});
+});

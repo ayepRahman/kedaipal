@@ -252,6 +252,29 @@ export const get = query({
 	},
 });
 
+/**
+ * Resolve the payment-proof storage ID into a viewable URL for the dashboard.
+ * Auth-gated (Clerk) — only the owning retailer can see the screenshot. Public
+ * shoppers must not be able to fish proof images for arbitrary shortIds, so
+ * this is intentionally separate from the public `get` query.
+ */
+export const getPaymentProofUrl = query({
+	args: { orderId: v.id("orders") },
+	handler: async (ctx, { orderId }): Promise<string | null> => {
+		const identity = await ctx.auth.getUserIdentity();
+		if (!identity) throw new Error("Not authenticated");
+
+		const order = await ctx.db.get(orderId);
+		if (!order) return null;
+		const retailer = await ctx.db.get(order.retailerId);
+		if (!retailer) return null;
+		if (retailer.userId !== identity.subject) throw new Error("Forbidden");
+
+		if (!order.paymentProofStorageId) return null;
+		return (await ctx.storage.getUrl(order.paymentProofStorageId)) ?? null;
+	},
+});
+
 export const listByRetailer = query({
 	args: {
 		retailerId: v.id("retailers"),
@@ -431,5 +454,169 @@ export const updateDeliveryAddress = mutation({
 			note: "address_updated",
 			createdAt: now,
 		});
+	},
+});
+
+const PAYMENT_REFERENCE_MAX = 80;
+
+/**
+ * Public mutation: shopper claims they've paid for their order. Trust model
+ * mirrors `updateDeliveryAddress` — knowing the shortId is the capability.
+ *
+ * Idempotent: re-submitting overwrites the reference / proof and refreshes
+ * `paymentClaimedAt`. Rejects only when the order is already `received`, since
+ * a confirmed-by-retailer payment shouldn't be re-claimed.
+ */
+export const claimPayment = mutation({
+	args: {
+		shortId: v.string(),
+		reference: v.optional(v.string()),
+		proofStorageId: v.optional(v.string()),
+	},
+	handler: async (
+		ctx,
+		{ shortId, reference, proofStorageId },
+	): Promise<void> => {
+		await rateLimiter.limit(ctx, "paymentClaim", {
+			key: shortId,
+			throws: true,
+		});
+
+		const order = await ctx.db
+			.query("orders")
+			.withIndex("by_shortId", (q) => q.eq("shortId", shortId))
+			.first();
+		if (!order) throw new ConvexError("Order not found");
+		if (order.paymentStatus === "received") {
+			throw new ConvexError("Payment already confirmed");
+		}
+
+		const trimmedRef = reference?.trim();
+		if (trimmedRef && trimmedRef.length > PAYMENT_REFERENCE_MAX) {
+			throw new ConvexError(
+				`Reference must be ${PAYMENT_REFERENCE_MAX} characters or fewer`,
+			);
+		}
+		const trimmedProof = proofStorageId?.trim();
+
+		const now = Date.now();
+		const patch: Partial<Doc<"orders">> = {
+			paymentStatus: "claimed",
+			paymentClaimedAt: now,
+			updatedAt: now,
+		};
+		if (trimmedRef && trimmedRef.length > 0) {
+			patch.paymentReference = trimmedRef;
+		}
+		if (trimmedProof && trimmedProof.length > 0) {
+			patch.paymentProofStorageId = trimmedProof;
+		}
+		await ctx.db.patch(order._id, patch);
+		await ctx.db.insert("orderEvents", {
+			orderId: order._id,
+			status: order.status,
+			note: "payment_claimed",
+			createdAt: now,
+		});
+
+		await ctx.scheduler.runAfter(
+			0,
+			internal.email.notifyPaymentClaimed,
+			{ orderId: order._id },
+		);
+	},
+});
+
+/**
+ * Retailer-only mutation: mark that the payment has landed in the bank app.
+ * Auto-bumps `pending → confirmed` (the new payment-received WhatsApp message
+ * already covers the shopper-facing handshake, so this skips the regular
+ * `notifyStatusChange` to avoid sending two messages).
+ */
+export const markPaymentReceived = mutation({
+	args: {
+		orderId: v.id("orders"),
+		note: v.optional(v.string()),
+	},
+	handler: async (ctx, { orderId, note }): Promise<void> => {
+		const identity = await ctx.auth.getUserIdentity();
+		if (!identity) throw new Error("Not authenticated");
+
+		const order = await ctx.db.get(orderId);
+		if (!order) throw new Error("Order not found");
+
+		const retailer = await ctx.db.get(order.retailerId);
+		if (!retailer) throw new Error("Retailer not found");
+		if (retailer.userId !== identity.subject) throw new Error("Forbidden");
+
+		if (order.paymentStatus === "received") {
+			// Idempotent — second click is a no-op.
+			return;
+		}
+
+		const now = Date.now();
+		const trimmedNote = note?.trim();
+		const shouldAutoConfirm = order.status === "pending";
+
+		const patch: Partial<Doc<"orders">> = {
+			paymentStatus: "received",
+			paymentReceivedAt: now,
+			updatedAt: now,
+		};
+		if (shouldAutoConfirm) {
+			patch.status = "confirmed";
+		}
+		await ctx.db.patch(orderId, patch);
+
+		if (shouldAutoConfirm) {
+			await ctx.db.insert("orderEvents", {
+				orderId,
+				status: "confirmed",
+				note: "payment_received_auto_confirm",
+				createdAt: now,
+			});
+		} else {
+			await ctx.db.insert("orderEvents", {
+				orderId,
+				status: order.status,
+				note: trimmedNote && trimmedNote.length > 0
+					? `payment_received: ${trimmedNote}`
+					: "payment_received",
+				createdAt: now,
+			});
+		}
+
+		await ctx.scheduler.runAfter(
+			0,
+			internal.whatsapp.notifyPaymentReceived,
+			{ orderId },
+		);
+	},
+});
+
+/**
+ * Public mutation: mint a one-shot Convex storage upload URL so the shopper
+ * can attach a payment screenshot before submitting `claimPayment`. Same
+ * shortId-as-capability trust model. Refused once the order is already
+ * `received` so we don't accept proof for a closed claim.
+ */
+export const generateOrderProofUploadUrl = mutation({
+	args: { shortId: v.string() },
+	handler: async (ctx, { shortId }): Promise<string> => {
+		await rateLimiter.limit(ctx, "proofUpload", {
+			key: shortId,
+			throws: true,
+		});
+
+		const order = await ctx.db
+			.query("orders")
+			.withIndex("by_shortId", (q) => q.eq("shortId", shortId))
+			.first();
+		if (!order) throw new ConvexError("Order not found");
+		if (order.paymentStatus === "received") {
+			throw new ConvexError("Payment already confirmed");
+		}
+
+		return ctx.storage.generateUploadUrl();
 	},
 });

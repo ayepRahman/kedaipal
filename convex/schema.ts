@@ -148,11 +148,29 @@ export default defineSchema({
 		// shipped. Surfaced on the customer tracking page and included in the
 		// WhatsApp shipped notification. Only relevant for delivery orders.
 		carrierTrackingUrl: v.optional(v.string()),
+		// Payment handshake — independent of the fulfilment status pipeline above.
+		// `unpaid` (or undefined) → shopper hasn't claimed payment yet.
+		// `claimed` → shopper tapped "I've paid" on the tracking page.
+		// `received` → retailer confirmed the money landed in their bank app.
+		// A future PSP webhook can short-circuit straight to "received" without
+		// the manual claim step — same end state.
+		paymentStatus: v.optional(
+			v.union(
+				v.literal("unpaid"),
+				v.literal("claimed"),
+				v.literal("received"),
+			),
+		),
+		paymentReference: v.optional(v.string()),
+		paymentClaimedAt: v.optional(v.number()),
+		paymentReceivedAt: v.optional(v.number()),
+		paymentProofStorageId: v.optional(v.string()),
 		createdAt: v.number(),
 		updatedAt: v.number(),
 	})
 		.index("by_retailer", ["retailerId"])
 		.index("by_retailer_status", ["retailerId", "status"])
+		.index("by_retailer_payment", ["retailerId", "paymentStatus"])
 		.index("by_shortId", ["shortId"]),
 
 	orderEvents: defineTable({

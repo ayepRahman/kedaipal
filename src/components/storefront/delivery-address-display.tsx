@@ -10,7 +10,9 @@ interface DeliveryAddressDisplayProps {
  * Read-only multi-line render of a delivery address. Used inside both the
  * customer tracking page and the retailer dashboard order detail page.
  */
-export function DeliveryAddressDisplay({ address }: DeliveryAddressDisplayProps) {
+export function DeliveryAddressDisplay({
+	address,
+}: DeliveryAddressDisplayProps) {
 	return (
 		<div className="flex flex-col gap-0.5 text-sm">
 			<p className="font-medium">{address.line1}</p>

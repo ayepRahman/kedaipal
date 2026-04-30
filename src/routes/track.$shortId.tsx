@@ -1,9 +1,12 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import {
+	BadgeCheck,
 	CheckCircle,
 	Clock,
 	ExternalLink,
+	HandCoins,
+	Hourglass,
 	MapPin,
 	Package,
 	Pencil,
@@ -15,9 +18,54 @@ import { type ReactNode, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import { AddressEditDialog } from "../components/storefront/address-edit-dialog";
 import { DeliveryAddressDisplay } from "../components/storefront/delivery-address-display";
+import { IvePaidDialog } from "../components/storefront/ive-paid-dialog";
+import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
 import { getConvexHttpClient, SITE_URL } from "../lib/convex-server";
 import { formatPrice } from "../lib/format";
+
+type PaymentStatus = "unpaid" | "claimed" | "received";
+
+type PaymentCfg = {
+	label: string;
+	icon: ReactNode;
+	tone: string;
+};
+
+function getPaymentConfig(status: PaymentStatus): PaymentCfg {
+	switch (status) {
+		case "received":
+			return {
+				label: "Payment Confirmed",
+				icon: <BadgeCheck className="size-5" />,
+				tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
+			};
+		case "claimed":
+			return {
+				label: "Payment Submitted",
+				icon: <Hourglass className="size-5" />,
+				tone: "border-blue-200 bg-blue-50 text-blue-700",
+			};
+		default:
+			return {
+				label: "Payment Unpaid",
+				icon: <HandCoins className="size-5" />,
+				tone: "border-amber-200 bg-amber-50 text-amber-800",
+			};
+	}
+}
+
+function formatRelativeTime(epochMs: number | undefined): string {
+	if (!epochMs) return "";
+	const diff = Date.now() - epochMs;
+	const minute = 60_000;
+	const hour = 60 * minute;
+	const day = 24 * hour;
+	if (diff < minute) return "just now";
+	if (diff < hour) return `${Math.floor(diff / minute)}m ago`;
+	if (diff < day) return `${Math.floor(diff / hour)}h ago`;
+	return `${Math.floor(diff / day)}d ago`;
+}
 
 export const Route = createFileRoute("/track/$shortId")({
 	loader: async ({ params }) => {
@@ -162,6 +210,7 @@ function TrackingRoute() {
 	const { shortId } = Route.useParams();
 	const order = useQuery(api.orders.get, { shortId });
 	const [editingAddress, setEditingAddress] = useState(false);
+	const [claimingPayment, setClaimingPayment] = useState(false);
 
 	if (order === undefined) {
 		return <TrackingSkeleton />;
@@ -176,6 +225,8 @@ function TrackingRoute() {
 	const config = statusConfig[order.status];
 	const isCancelled = order.status === "cancelled";
 	const canEditAddress = order.status === "pending" && !isSelfCollect;
+	const paymentStatus = (order.paymentStatus ?? "unpaid") as PaymentStatus;
+	const paymentConfig = getPaymentConfig(paymentStatus);
 
 	return (
 		<main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-12 pt-10">
@@ -203,6 +254,55 @@ function TrackingRoute() {
 					<p className="font-semibold">{config?.label ?? order.status}</p>
 				</div>
 			</div>
+
+			{/* Payment card — independent of fulfilment status. Hidden once cancelled. */}
+			{!isCancelled ? (
+				<section
+					className={`mt-4 flex flex-col gap-3 rounded-2xl border p-4 ${paymentConfig.tone}`}
+				>
+					<div className="flex items-center gap-3">
+						{paymentConfig.icon}
+						<div className="min-w-0 flex-1">
+							<p className="text-xs font-semibold uppercase tracking-widest opacity-80">
+								Payment
+							</p>
+							<p className="font-semibold">{paymentConfig.label}</p>
+						</div>
+						{paymentStatus === "received" && order.paymentReceivedAt ? (
+							<p className="shrink-0 text-xs opacity-80">
+								{formatRelativeTime(order.paymentReceivedAt)}
+							</p>
+						) : null}
+					</div>
+
+					{paymentStatus === "unpaid" ? (
+						<Button
+							onClick={() => setClaimingPayment(true)}
+							className="h-12 w-full text-base"
+						>
+							I've paid
+						</Button>
+					) : null}
+
+					{paymentStatus === "claimed" ? (
+						<div className="flex items-center justify-between gap-3 text-sm">
+							<p className="opacity-80">
+								Awaiting store confirmation
+								{order.paymentClaimedAt
+									? ` · ${formatRelativeTime(order.paymentClaimedAt)}`
+									: ""}
+							</p>
+							<button
+								type="button"
+								onClick={() => setClaimingPayment(true)}
+								className="shrink-0 font-medium underline-offset-2 hover:underline"
+							>
+								Update proof
+							</button>
+						</div>
+					) : null}
+				</section>
+			) : null}
 
 			{/* Progress timeline — not shown for cancelled orders */}
 			{!isCancelled ? (
@@ -315,6 +415,13 @@ function TrackingRoute() {
 				onClose={() => setEditingAddress(false)}
 				shortId={order.shortId}
 				currentAddress={order.deliveryAddress}
+			/>
+
+			<IvePaidDialog
+				open={claimingPayment}
+				onClose={() => setClaimingPayment(false)}
+				shortId={order.shortId}
+				hasExistingClaim={paymentStatus === "claimed"}
 			/>
 
 			{/* Items */}

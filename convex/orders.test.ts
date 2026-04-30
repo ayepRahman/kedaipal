@@ -702,4 +702,313 @@ describe("orders", () => {
 		expect(updateEvent).toBeTruthy();
 		expect(updateEvent?.status).toBe("pending");
 	});
+
+	describe("payment handshake", () => {
+		test("claimPayment patches paymentStatus, writes event, schedules email", async () => {
+			const t = setup();
+			const retailer = await seedRetailer(t, USER_A);
+			const productId = await seedProduct(t, USER_A, retailer._id);
+			const { shortId } = await t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryAddress: validAddress,
+			});
+
+			await t.mutation(api.orders.claimPayment, {
+				shortId,
+				reference: "TXN-12345",
+			});
+
+			const order = await t.query(api.orders.get, { shortId });
+			expect(order?.paymentStatus).toBe("claimed");
+			expect(order?.paymentReference).toBe("TXN-12345");
+			expect(order?.paymentClaimedAt).toBeTypeOf("number");
+			// Status untouched — payment is independent of fulfilment.
+			expect(order?.status).toBe("pending");
+
+			const events = await t.run(async (ctx) =>
+				ctx.db
+					.query("orderEvents")
+					.withIndex("by_order", (q) => q.eq("orderId", order!._id))
+					.collect(),
+			);
+			const claimEvent = events.find((e) => e.note === "payment_claimed");
+			expect(claimEvent).toBeTruthy();
+		});
+
+		test("claimPayment without reference or proof still succeeds", async () => {
+			const t = setup();
+			const retailer = await seedRetailer(t, USER_A);
+			const productId = await seedProduct(t, USER_A, retailer._id);
+			const { shortId } = await t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryAddress: validAddress,
+			});
+			await t.mutation(api.orders.claimPayment, { shortId });
+			const order = await t.query(api.orders.get, { shortId });
+			expect(order?.paymentStatus).toBe("claimed");
+			expect(order?.paymentReference).toBeUndefined();
+		});
+
+		test("claimPayment is idempotent — second claim overwrites reference", async () => {
+			const t = setup();
+			const retailer = await seedRetailer(t, USER_A);
+			const productId = await seedProduct(t, USER_A, retailer._id);
+			const { shortId } = await t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryAddress: validAddress,
+			});
+
+			await t.mutation(api.orders.claimPayment, {
+				shortId,
+				reference: "first",
+			});
+			await t.mutation(api.orders.claimPayment, {
+				shortId,
+				reference: "second",
+			});
+			const order = await t.query(api.orders.get, { shortId });
+			expect(order?.paymentStatus).toBe("claimed");
+			expect(order?.paymentReference).toBe("second");
+		});
+
+		test("claimPayment rejects unknown shortId", async () => {
+			const t = setup();
+			await expect(
+				t.mutation(api.orders.claimPayment, { shortId: "ORD-NOPE" }),
+			).rejects.toThrow(/Order not found/);
+		});
+
+		test("claimPayment rejects when payment already received", async () => {
+			const t = setup();
+			const retailer = await seedRetailer(t, USER_A);
+			const productId = await seedProduct(t, USER_A, retailer._id);
+			const { shortId } = await t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryAddress: validAddress,
+			});
+			const order = await t.query(api.orders.get, { shortId });
+			await t.run(async (ctx) => {
+				await ctx.db.patch(order!._id, { paymentStatus: "received" });
+			});
+			await expect(
+				t.mutation(api.orders.claimPayment, { shortId }),
+			).rejects.toThrow(/already confirmed/);
+		});
+
+		test("claimPayment rejects oversized reference", async () => {
+			const t = setup();
+			const retailer = await seedRetailer(t, USER_A);
+			const productId = await seedProduct(t, USER_A, retailer._id);
+			const { shortId } = await t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryAddress: validAddress,
+			});
+			await expect(
+				t.mutation(api.orders.claimPayment, {
+					shortId,
+					reference: "x".repeat(81),
+				}),
+			).rejects.toThrow(/characters or fewer/);
+		});
+
+		test("markPaymentReceived sets paymentStatus and auto-confirms pending", async () => {
+			const t = setup();
+			const retailer = await seedRetailer(t, USER_A);
+			const productId = await seedProduct(t, USER_A, retailer._id);
+			const { shortId } = await t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryAddress: validAddress,
+			});
+			const order = await t.query(api.orders.get, { shortId });
+			const asA = t.withIdentity({ subject: USER_A });
+			await asA.mutation(api.orders.markPaymentReceived, {
+				orderId: order!._id,
+			});
+			const updated = await t.query(api.orders.get, { shortId });
+			expect(updated?.paymentStatus).toBe("received");
+			expect(updated?.paymentReceivedAt).toBeTypeOf("number");
+			expect(updated?.status).toBe("confirmed");
+
+			const events = await t.run(async (ctx) =>
+				ctx.db
+					.query("orderEvents")
+					.withIndex("by_order", (q) => q.eq("orderId", order!._id))
+					.collect(),
+			);
+			const autoConfirmEvent = events.find(
+				(e) => e.note === "payment_received_auto_confirm",
+			);
+			expect(autoConfirmEvent?.status).toBe("confirmed");
+		});
+
+		test("markPaymentReceived does not auto-confirm if already past pending", async () => {
+			const t = setup();
+			const retailer = await seedRetailer(t, USER_A);
+			const productId = await seedProduct(t, USER_A, retailer._id);
+			const { shortId } = await t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryAddress: validAddress,
+			});
+			const order = await t.query(api.orders.get, { shortId });
+			const asA = t.withIdentity({ subject: USER_A });
+			await asA.mutation(api.orders.updateStatus, {
+				orderId: order!._id,
+				status: "confirmed",
+			});
+			await asA.mutation(api.orders.updateStatus, {
+				orderId: order!._id,
+				status: "packed",
+			});
+
+			await asA.mutation(api.orders.markPaymentReceived, {
+				orderId: order!._id,
+			});
+			const updated = await t.query(api.orders.get, { shortId });
+			expect(updated?.paymentStatus).toBe("received");
+			// Status preserved at packed — payment-received did not bump it back
+			// or further along the pipeline.
+			expect(updated?.status).toBe("packed");
+		});
+
+		test("markPaymentReceived requires authentication", async () => {
+			const t = setup();
+			const retailer = await seedRetailer(t, USER_A);
+			const productId = await seedProduct(t, USER_A, retailer._id);
+			const { shortId } = await t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryAddress: validAddress,
+			});
+			const order = await t.query(api.orders.get, { shortId });
+			await expect(
+				t.mutation(api.orders.markPaymentReceived, { orderId: order!._id }),
+			).rejects.toThrow(/Not authenticated/);
+		});
+
+		test("markPaymentReceived rejects non-owner retailer", async () => {
+			const t = setup();
+			const retailer = await seedRetailer(t, USER_A);
+			const productId = await seedProduct(t, USER_A, retailer._id);
+			await seedRetailer(t, USER_B);
+			const { shortId } = await t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryAddress: validAddress,
+			});
+			const order = await t.query(api.orders.get, { shortId });
+			const asB = t.withIdentity({ subject: USER_B });
+			await expect(
+				asB.mutation(api.orders.markPaymentReceived, { orderId: order!._id }),
+			).rejects.toThrow(/Forbidden/);
+		});
+
+		test("markPaymentReceived is idempotent — second call is no-op", async () => {
+			const t = setup();
+			const retailer = await seedRetailer(t, USER_A);
+			const productId = await seedProduct(t, USER_A, retailer._id);
+			const { shortId } = await t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryAddress: validAddress,
+			});
+			const order = await t.query(api.orders.get, { shortId });
+			const asA = t.withIdentity({ subject: USER_A });
+			await asA.mutation(api.orders.markPaymentReceived, {
+				orderId: order!._id,
+			});
+			const firstReceivedAt = (await t.query(api.orders.get, { shortId }))
+				?.paymentReceivedAt;
+			await asA.mutation(api.orders.markPaymentReceived, {
+				orderId: order!._id,
+			});
+			const secondReceivedAt = (await t.query(api.orders.get, { shortId }))
+				?.paymentReceivedAt;
+			expect(secondReceivedAt).toBe(firstReceivedAt);
+		});
+
+		test("generateOrderProofUploadUrl returns an upload URL for valid order", async () => {
+			const t = setup();
+			const retailer = await seedRetailer(t, USER_A);
+			const productId = await seedProduct(t, USER_A, retailer._id);
+			const { shortId } = await t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryAddress: validAddress,
+			});
+			const url = await t.mutation(api.orders.generateOrderProofUploadUrl, {
+				shortId,
+			});
+			expect(url).toMatch(/^https?:\/\//);
+		});
+
+		test("generateOrderProofUploadUrl rejects unknown shortId", async () => {
+			const t = setup();
+			await expect(
+				t.mutation(api.orders.generateOrderProofUploadUrl, {
+					shortId: "ORD-NOPE",
+				}),
+			).rejects.toThrow(/Order not found/);
+		});
+
+		test("generateOrderProofUploadUrl rejects after payment received", async () => {
+			const t = setup();
+			const retailer = await seedRetailer(t, USER_A);
+			const productId = await seedProduct(t, USER_A, retailer._id);
+			const { shortId } = await t.mutation(api.orders.create, {
+				retailerId: retailer._id,
+				items: [{ productId, quantity: 1 }],
+				currency: "MYR",
+				channel: "whatsapp",
+				customer,
+				deliveryAddress: validAddress,
+			});
+			const order = await t.query(api.orders.get, { shortId });
+			await t.run(async (ctx) => {
+				await ctx.db.patch(order!._id, { paymentStatus: "received" });
+			});
+			await expect(
+				t.mutation(api.orders.generateOrderProofUploadUrl, { shortId }),
+			).rejects.toThrow(/already confirmed/);
+		});
+	});
 });
