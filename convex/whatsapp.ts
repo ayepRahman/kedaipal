@@ -6,19 +6,18 @@ import {
 	internalMutation,
 	internalQuery,
 } from "./_generated/server";
-import { sendImage, sendText } from "./lib/whatsapp";
+import { sendCtaUrlWithImage, sendImage, sendText } from "./lib/whatsapp";
 import {
 	paymentQrCaption,
 	pickLocale,
 	renderMessage,
 	renderPaymentInstructions,
-	renderRetailerAlert,
+	renderSystemMessage,
 	SHORT_ID_REGEX,
 	type DeliveryMethod,
 	type Locale,
 	type MessageTemplates,
 	type PaymentInstructions,
-	type RetailerAlertKey,
 } from "./lib/whatsappCopy";
 
 type ResolvedPayment = {
@@ -189,6 +188,12 @@ export const handleInbound = internalAction({
 		text: v.string(),
 	},
 	handler: async (ctx, { fromPhone, text }): Promise<void> => {
+		console.log("WA inbound received", {
+			fromPhone,
+			textLength: text.length,
+			textPreview: text.slice(0, 120),
+		});
+
 		const fallback = (): string =>
 			renderMessage(undefined, "en", "unknownFallback", {
 				shortId: "",
@@ -197,6 +202,7 @@ export const handleInbound = internalAction({
 
 		const match = text.match(SHORT_ID_REGEX);
 		if (!match) {
+			console.log("WA inbound no shortId match → fallback", { fromPhone });
 			try {
 				await sendText(fromPhone, fallback());
 			} catch (err) {
@@ -206,12 +212,15 @@ export const handleInbound = internalAction({
 		}
 
 		const shortId = match[0];
+		console.log("WA inbound parsed shortId", { fromPhone, shortId });
 		const result = await ctx.runMutation(
 			internal.whatsapp.confirmOrderFromWhatsApp,
 			{ shortId, fromPhone },
 		);
+		console.log("WA confirm result", { fromPhone, shortId, ...result });
 
 		if (!result.matched) {
+			console.log("WA confirm not matched → fallback", { shortId, fromPhone });
 			try {
 				await sendText(fromPhone, fallback());
 			} catch (err) {
@@ -235,17 +244,43 @@ export const handleInbound = internalAction({
 			"confirm",
 			{ shortId, storeName, contactPhone, trackingUrl, deliveryMethod: meta?.deliveryMethod ?? "delivery" },
 		);
+		// Hard-coded, non-overridable: tells the shopper to use the order ID as
+		// the transfer reference. This is the only deterministic way the retailer
+		// can match a bank notification to an order, so it must always be present
+		// regardless of any retailer-customised confirm template.
+		const transferReferenceLine = renderSystemMessage(
+			locale,
+			"transferReferenceLine",
+			{ shortId, storeName },
+		);
 		const paymentBlock = renderPaymentInstructions(
 			locale,
 			meta?.payment.instructions,
 		);
-		const body = paymentBlock ? `${confirmBody}\n${paymentBlock}` : confirmBody;
-		const brandImageUrl = `${process.env.APP_URL ?? "https://kedaipal.com"}/logo-2.png`;
+		const confirmWithRef = `${confirmBody}\n\n${transferReferenceLine}`;
+		const body = paymentBlock
+			? `${confirmWithRef}\n${paymentBlock}`
+			: confirmWithRef;
+		const brandImageUrl = "https://kedaipal.com/logo-2.png";
+		// CTA URL buttons require HTTPS — in dev (APP_URL=http://localhost:3000)
+		// the button would be rejected by Meta, so we fall back to a plain image
+		// with caption. In prod, the shopper gets a tappable "I've paid" button.
+		const canUseButton = trackingUrl.startsWith("https://");
 		try {
-			await sendImage(fromPhone, brandImageUrl, body);
+			if (canUseButton) {
+				await sendCtaUrlWithImage(
+					fromPhone,
+					brandImageUrl,
+					body,
+					"I've paid",
+					trackingUrl,
+				);
+			} else {
+				await sendImage(fromPhone, brandImageUrl, body);
+			}
 		} catch (err) {
-			// Fall back to plain text if image send fails
-			console.error("WA confirm image send failed, falling back to text", err);
+			// Fall back to plain text if interactive/image send fails
+			console.error("WA confirm send failed, falling back to text", err);
 			try {
 				await sendText(fromPhone, body);
 			} catch (textErr) {
@@ -265,42 +300,14 @@ export const handleInbound = internalAction({
 			}
 		}
 
-		// Alert the retailer about the newly confirmed order (only on first
-		// confirmation, not idempotent re-sends). Sent directly from this action
-		// rather than via scheduler to avoid convex-test limitations with
-		// scheduled functions from mutations-within-actions.
+		// Email the retailer about the newly confirmed order (only on first
+		// confirmation, not idempotent re-sends). Fire-and-forget via scheduler.
 		if (!result.alreadyConfirmed && result.orderId) {
-			const alertMeta = await ctx.runQuery(
-				internal.whatsapp.getOrderForRetailerAlert,
+			await ctx.scheduler.runAfter(
+				0,
+				internal.email.notifyRetailerOrderAlert,
 				{ orderId: result.orderId },
 			);
-			if (!alertMeta) {
-				console.error(
-					`WA retailer confirmation alert skipped: no order meta (orderId=${result.orderId})`,
-				);
-			} else if (!alertMeta.retailerWaPhone) {
-				console.warn(
-					`WA retailer confirmation alert skipped: retailer waPhone is empty (orderId=${result.orderId}, shortId=${alertMeta.shortId})`,
-				);
-			} else {
-				const totalFormatted = `${alertMeta.currency} ${(alertMeta.total / 100).toFixed(2)}`;
-				const alertBody = renderRetailerAlert(alertMeta.locale, "orderConfirmed", {
-					shortId: alertMeta.shortId,
-					itemCount: alertMeta.itemCount,
-					totalFormatted,
-					customerName: alertMeta.customerName,
-					deliveryMethod: alertMeta.deliveryMethod,
-				});
-				try {
-					await sendText(alertMeta.retailerWaPhone, alertBody);
-				} catch (err) {
-					console.error(
-						`WA retailer confirmation alert failed (shortId=${alertMeta.shortId}, to=${alertMeta.retailerWaPhone}): ${
-							err instanceof Error ? err.message : String(err)
-						}`,
-					);
-				}
-			}
 		}
 	},
 });
@@ -357,100 +364,52 @@ export const notifyStatusChange = internalAction({
 	},
 });
 
-// ---------------------------------------------------------------------------
-// Retailer order alerts (WhatsApp notification TO the retailer)
-// ---------------------------------------------------------------------------
-
-export const getOrderForRetailerAlert = internalQuery({
-	args: { orderId: v.id("orders") },
-	handler: async (
-		ctx,
-		{ orderId },
-	): Promise<{
-		shortId: string;
-		status: Doc<"orders">["status"];
-		itemCount: number;
-		total: number;
-		currency: string;
-		customerName: string;
-		deliveryMethod: DeliveryMethod;
-		retailerWaPhone: string | undefined;
-		locale: Locale;
-	} | null> => {
-		const order = await ctx.db.get(orderId);
-		if (!order) return null;
-		const retailer = await ctx.db.get(order.retailerId);
-		if (!retailer) return null;
-		return {
-			shortId: order.shortId,
-			status: order.status,
-			itemCount: order.items.reduce((sum, i) => sum + i.quantity, 0),
-			total: order.total,
-			currency: order.currency,
-			customerName: order.customer.name ?? "Anonymous",
-			deliveryMethod: (order.deliveryMethod as DeliveryMethod | undefined) ?? "delivery",
-			retailerWaPhone: retailer.waPhone,
-			locale: (retailer.locale as Locale | undefined) ?? "en",
-		};
-	},
-});
-
-export const notifyRetailerOrderAlert = internalAction({
+/**
+ * Scheduled by orders.markPaymentReceived. Sends a localized "payment received"
+ * message to the shopper. Same swallow-errors / no-op-on-missing-waPhone shape
+ * as `notifyStatusChange`. Bypasses the regular status pipeline because the
+ * payment dimension is independent and we don't want to send two messages
+ * when this fires alongside an auto-confirm.
+ */
+export const notifyPaymentReceived = internalAction({
 	args: { orderId: v.id("orders") },
 	handler: async (ctx, { orderId }): Promise<void> => {
-		let meta: {
+		type Meta = {
 			shortId: string;
 			status: Doc<"orders">["status"];
-			itemCount: number;
-			total: number;
-			currency: string;
-			customerName: string;
-			deliveryMethod: DeliveryMethod;
+			customerWaPhone: string | undefined;
+			storeName: string;
 			retailerWaPhone: string | undefined;
+			retailerSlug: string;
+			carrierTrackingUrl: string | undefined;
+			deliveryMethod: DeliveryMethod;
 			locale: Locale;
-		} | null = null;
+			messageTemplates: MessageTemplates | undefined;
+		};
+		let meta: Meta | null = null;
 		try {
-			meta = await ctx.runQuery(
-				internal.whatsapp.getOrderForRetailerAlert,
-				{ orderId },
-			);
+			meta = await ctx.runQuery(internal.whatsapp.getOrderWithRetailer, {
+				orderId,
+			});
 		} catch (err) {
-			console.error("WA retailer notify lookup failed", err);
+			console.error("WA payment-received lookup failed", err);
 			return;
 		}
-		if (!meta) {
-			console.error(
-				`WA retailer alert skipped: no order meta (orderId=${orderId})`,
-			);
-			return;
-		}
-		if (!meta.retailerWaPhone) {
-			console.warn(
-				`WA retailer alert skipped: retailer waPhone is empty (orderId=${orderId}, shortId=${meta.shortId})`,
-			);
-			return;
-		}
+		if (!meta) return;
+		if (!meta.customerWaPhone) return;
 
-		const alertKey: RetailerAlertKey =
-			meta.status === "pending" ? "newOrder" : "orderConfirmed";
-		const totalFormatted = `${meta.currency} ${(meta.total / 100).toFixed(2)}`;
-
-		const body = renderRetailerAlert(meta.locale, alertKey, {
+		const appUrl = process.env.APP_URL ?? "https://kedaipal.com";
+		const trackingUrl = `${appUrl}/track/${meta.shortId}`;
+		const locale = pickLocale(meta.locale);
+		const body = renderSystemMessage(locale, "paymentReceived", {
 			shortId: meta.shortId,
-			itemCount: meta.itemCount,
-			totalFormatted,
-			customerName: meta.customerName,
-			deliveryMethod: meta.deliveryMethod,
+			storeName: meta.storeName,
+			trackingUrl,
 		});
-
 		try {
-			await sendText(meta.retailerWaPhone, body);
+			await sendText(meta.customerWaPhone, body);
 		} catch (err) {
-			console.error(
-				`WA retailer alert failed (shortId=${meta.shortId}, to=${meta.retailerWaPhone}): ${
-					err instanceof Error ? err.message : String(err)
-				}`,
-			);
+			console.error("WA payment-received send failed", err);
 		}
 	},
 });

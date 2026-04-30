@@ -3,9 +3,20 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
+import { assertValidAddress } from "./lib/address";
 import { computeOrderTotals, generateShortId } from "./lib/order";
 import { rateLimiter } from "./lib/rateLimiter";
 import { assertValidWaPhone } from "./lib/slug";
+
+const addressValidator = v.object({
+	line1: v.string(),
+	line2: v.optional(v.string()),
+	city: v.string(),
+	state: v.string(),
+	postcode: v.string(),
+	notes: v.optional(v.string()),
+	mapsUrl: v.optional(v.string()),
+});
 
 const MAX_ITEMS_PER_ORDER = 100;
 const SHORT_ID_RETRIES = 3;
@@ -52,6 +63,7 @@ export const create = mutation({
 		deliveryMethod: v.optional(
 			v.union(v.literal("delivery"), v.literal("self_collect")),
 		),
+		deliveryAddress: v.optional(addressValidator),
 	},
 	handler: async (ctx, args): Promise<{ shortId: string }> => {
 		// Rate limit FIRST — public endpoint, throttle per storefront before any DB reads.
@@ -59,6 +71,27 @@ export const create = mutation({
 			key: args.retailerId,
 			throws: true,
 		});
+
+		// Address invariant: required for delivery, forbidden for self_collect.
+		const effectiveDeliveryMethod = args.deliveryMethod ?? "delivery";
+		if (effectiveDeliveryMethod === "delivery" && !args.deliveryAddress) {
+			throw new ConvexError(
+				"Delivery address is required for delivery orders",
+			);
+		}
+		if (effectiveDeliveryMethod === "self_collect" && args.deliveryAddress) {
+			throw new ConvexError(
+				"Self-collect orders should not include an address",
+			);
+		}
+		let sanitizedAddress: ReturnType<typeof assertValidAddress> | undefined;
+		if (args.deliveryAddress) {
+			try {
+				sanitizedAddress = assertValidAddress(args.deliveryAddress);
+			} catch (err) {
+				throw new ConvexError((err as Error).message);
+			}
+		}
 
 		// Customer waPhone is optional at checkout — the WhatsApp webhook
 		// stamps it automatically when the shopper sends the order message.
@@ -155,7 +188,8 @@ export const create = mutation({
 			status: "pending",
 			channel: args.channel,
 			customer: sanitizedCustomer,
-			deliveryMethod: args.deliveryMethod ?? "delivery",
+			deliveryMethod: effectiveDeliveryMethod,
+			deliveryAddress: sanitizedAddress,
 			createdAt: now,
 			updatedAt: now,
 		});
@@ -166,10 +200,10 @@ export const create = mutation({
 			createdAt: now,
 		});
 
-		// Fire-and-forget WhatsApp alert to the retailer about the new order.
+		// Fire-and-forget email alert to the retailer about the new order.
 		await ctx.scheduler.runAfter(
 			0,
-			internal.whatsapp.notifyRetailerOrderAlert,
+			internal.email.notifyRetailerOrderAlert,
 			{ orderId },
 		);
 
@@ -215,6 +249,29 @@ export const get = query({
 			.query("orders")
 			.withIndex("by_shortId", (q) => q.eq("shortId", shortId))
 			.first();
+	},
+});
+
+/**
+ * Resolve the payment-proof storage ID into a viewable URL for the dashboard.
+ * Auth-gated (Clerk) — only the owning retailer can see the screenshot. Public
+ * shoppers must not be able to fish proof images for arbitrary shortIds, so
+ * this is intentionally separate from the public `get` query.
+ */
+export const getPaymentProofUrl = query({
+	args: { orderId: v.id("orders") },
+	handler: async (ctx, { orderId }): Promise<string | null> => {
+		const identity = await ctx.auth.getUserIdentity();
+		if (!identity) throw new Error("Not authenticated");
+
+		const order = await ctx.db.get(orderId);
+		if (!order) return null;
+		const retailer = await ctx.db.get(order.retailerId);
+		if (!retailer) return null;
+		if (retailer.userId !== identity.subject) throw new Error("Forbidden");
+
+		if (!order.paymentProofStorageId) return null;
+		return (await ctx.storage.getUrl(order.paymentProofStorageId)) ?? null;
 	},
 });
 
@@ -344,5 +401,222 @@ export const setCarrierTrackingUrl = mutation({
 			carrierTrackingUrl: trimmed.length > 0 ? trimmed : undefined,
 			updatedAt: Date.now(),
 		});
+	},
+});
+
+/**
+ * Public mutation that lets the shopper edit their delivery address while the
+ * order is still pending. Trust model mirrors the tracking page: the shortId
+ * is the capability — anyone who knows it can edit. Once the order moves out
+ * of "pending" the address is locked and the shopper must contact the store.
+ */
+export const updateDeliveryAddress = mutation({
+	args: {
+		shortId: v.string(),
+		deliveryAddress: addressValidator,
+	},
+	handler: async (ctx, { shortId, deliveryAddress }): Promise<void> => {
+		await rateLimiter.limit(ctx, "addressUpdate", {
+			key: shortId,
+			throws: true,
+		});
+
+		const order = await ctx.db
+			.query("orders")
+			.withIndex("by_shortId", (q) => q.eq("shortId", shortId))
+			.first();
+		if (!order) throw new ConvexError("Order not found");
+
+		if (order.status !== "pending") {
+			throw new ConvexError(
+				"Address can only be edited while the order is pending",
+			);
+		}
+		if (order.deliveryMethod === "self_collect") {
+			throw new ConvexError("Self-collect orders do not have a delivery address");
+		}
+
+		let sanitized: ReturnType<typeof assertValidAddress>;
+		try {
+			sanitized = assertValidAddress(deliveryAddress);
+		} catch (err) {
+			throw new ConvexError((err as Error).message);
+		}
+
+		const now = Date.now();
+		await ctx.db.patch(order._id, {
+			deliveryAddress: sanitized,
+			updatedAt: now,
+		});
+		await ctx.db.insert("orderEvents", {
+			orderId: order._id,
+			status: "pending",
+			note: "address_updated",
+			createdAt: now,
+		});
+	},
+});
+
+const PAYMENT_REFERENCE_MAX = 80;
+
+/**
+ * Public mutation: shopper claims they've paid for their order. Trust model
+ * mirrors `updateDeliveryAddress` — knowing the shortId is the capability.
+ *
+ * Idempotent: re-submitting overwrites the reference / proof and refreshes
+ * `paymentClaimedAt`. Rejects only when the order is already `received`, since
+ * a confirmed-by-retailer payment shouldn't be re-claimed.
+ */
+export const claimPayment = mutation({
+	args: {
+		shortId: v.string(),
+		reference: v.optional(v.string()),
+		proofStorageId: v.optional(v.string()),
+	},
+	handler: async (
+		ctx,
+		{ shortId, reference, proofStorageId },
+	): Promise<void> => {
+		await rateLimiter.limit(ctx, "paymentClaim", {
+			key: shortId,
+			throws: true,
+		});
+
+		const order = await ctx.db
+			.query("orders")
+			.withIndex("by_shortId", (q) => q.eq("shortId", shortId))
+			.first();
+		if (!order) throw new ConvexError("Order not found");
+		if (order.paymentStatus === "received") {
+			throw new ConvexError("Payment already confirmed");
+		}
+
+		const trimmedRef = reference?.trim();
+		if (trimmedRef && trimmedRef.length > PAYMENT_REFERENCE_MAX) {
+			throw new ConvexError(
+				`Reference must be ${PAYMENT_REFERENCE_MAX} characters or fewer`,
+			);
+		}
+		const trimmedProof = proofStorageId?.trim();
+
+		const now = Date.now();
+		const patch: Partial<Doc<"orders">> = {
+			paymentStatus: "claimed",
+			paymentClaimedAt: now,
+			updatedAt: now,
+		};
+		if (trimmedRef && trimmedRef.length > 0) {
+			patch.paymentReference = trimmedRef;
+		}
+		if (trimmedProof && trimmedProof.length > 0) {
+			patch.paymentProofStorageId = trimmedProof;
+		}
+		await ctx.db.patch(order._id, patch);
+		await ctx.db.insert("orderEvents", {
+			orderId: order._id,
+			status: order.status,
+			note: "payment_claimed",
+			createdAt: now,
+		});
+
+		await ctx.scheduler.runAfter(
+			0,
+			internal.email.notifyPaymentClaimed,
+			{ orderId: order._id },
+		);
+	},
+});
+
+/**
+ * Retailer-only mutation: mark that the payment has landed in the bank app.
+ * Auto-bumps `pending → confirmed` (the new payment-received WhatsApp message
+ * already covers the shopper-facing handshake, so this skips the regular
+ * `notifyStatusChange` to avoid sending two messages).
+ */
+export const markPaymentReceived = mutation({
+	args: {
+		orderId: v.id("orders"),
+		note: v.optional(v.string()),
+	},
+	handler: async (ctx, { orderId, note }): Promise<void> => {
+		const identity = await ctx.auth.getUserIdentity();
+		if (!identity) throw new Error("Not authenticated");
+
+		const order = await ctx.db.get(orderId);
+		if (!order) throw new Error("Order not found");
+
+		const retailer = await ctx.db.get(order.retailerId);
+		if (!retailer) throw new Error("Retailer not found");
+		if (retailer.userId !== identity.subject) throw new Error("Forbidden");
+
+		if (order.paymentStatus === "received") {
+			// Idempotent — second click is a no-op.
+			return;
+		}
+
+		const now = Date.now();
+		const trimmedNote = note?.trim();
+		const shouldAutoConfirm = order.status === "pending";
+
+		const patch: Partial<Doc<"orders">> = {
+			paymentStatus: "received",
+			paymentReceivedAt: now,
+			updatedAt: now,
+		};
+		if (shouldAutoConfirm) {
+			patch.status = "confirmed";
+		}
+		await ctx.db.patch(orderId, patch);
+
+		if (shouldAutoConfirm) {
+			await ctx.db.insert("orderEvents", {
+				orderId,
+				status: "confirmed",
+				note: "payment_received_auto_confirm",
+				createdAt: now,
+			});
+		} else {
+			await ctx.db.insert("orderEvents", {
+				orderId,
+				status: order.status,
+				note: trimmedNote && trimmedNote.length > 0
+					? `payment_received: ${trimmedNote}`
+					: "payment_received",
+				createdAt: now,
+			});
+		}
+
+		await ctx.scheduler.runAfter(
+			0,
+			internal.whatsapp.notifyPaymentReceived,
+			{ orderId },
+		);
+	},
+});
+
+/**
+ * Public mutation: mint a one-shot Convex storage upload URL so the shopper
+ * can attach a payment screenshot before submitting `claimPayment`. Same
+ * shortId-as-capability trust model. Refused once the order is already
+ * `received` so we don't accept proof for a closed claim.
+ */
+export const generateOrderProofUploadUrl = mutation({
+	args: { shortId: v.string() },
+	handler: async (ctx, { shortId }): Promise<string> => {
+		await rateLimiter.limit(ctx, "proofUpload", {
+			key: shortId,
+			throws: true,
+		});
+
+		const order = await ctx.db
+			.query("orders")
+			.withIndex("by_shortId", (q) => q.eq("shortId", shortId))
+			.first();
+		if (!order) throw new ConvexError("Order not found");
+		if (order.paymentStatus === "received") {
+			throw new ConvexError("Payment already confirmed");
+		}
+
+		return ctx.storage.generateUploadUrl();
 	},
 });

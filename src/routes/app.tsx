@@ -9,9 +9,9 @@ import {
 	Outlet,
 	useNavigate,
 } from "@tanstack/react-router";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { Home, Package, Settings, ShoppingBag } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { api } from "../../convex/_generated/api";
 import { useOrderToastNotifications } from "../hooks/useOrderToastNotifications";
 import { cn } from "../lib/utils";
@@ -47,6 +47,24 @@ function AppShell() {
 	useEffect(() => {
 		if (retailer === null) navigate({ to: "/onboarding" });
 	}, [retailer, navigate]);
+
+	// One-shot backfill: if the retailer has no notifyEmail yet, copy it from
+	// their Clerk identity email so existing accounts get auto-populated
+	// without a manual visit to Settings. Idempotent on the server side; the
+	// ref guard just stops us re-firing within the same session.
+	const ensureNotifyEmail = useMutation(
+		api.retailers.ensureNotifyEmailFromIdentity,
+	);
+	const triedNotifyEmailBackfill = useRef(false);
+	useEffect(() => {
+		if (triedNotifyEmailBackfill.current) return;
+		if (!retailer) return;
+		if (retailer.notifyEmail && retailer.notifyEmail.trim().length > 0) return;
+		triedNotifyEmailBackfill.current = true;
+		ensureNotifyEmail({}).catch(() => {
+			// Non-fatal — retailer can still set the email manually in settings.
+		});
+	}, [retailer, ensureNotifyEmail]);
 
 	if (retailer === undefined || retailer === null) {
 		return (

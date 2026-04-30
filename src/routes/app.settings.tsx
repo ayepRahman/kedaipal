@@ -17,7 +17,10 @@ import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
 import { useSlugAvailability } from "../hooks/useSlugAvailability";
 import { convexErrorMessage } from "../lib/format";
-import { settingsWaPhoneFormSchema } from "../lib/schemas";
+import {
+	settingsNotifyEmailFormSchema,
+	settingsWaPhoneFormSchema,
+} from "../lib/schemas";
 
 const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES.map((c) => ({
 	value: c,
@@ -202,6 +205,12 @@ function SettingsRoute() {
 						<LogoForm
 							currentLogoUrl={retailer.logoUrl}
 							onSave={(logoStorageId) => updateSettings({ logoStorageId })}
+						/>
+					</Card>
+					<Card>
+						<NotifyEmailForm
+							current={retailer.notifyEmail ?? ""}
+							onSave={(notifyEmail) => updateSettings({ notifyEmail })}
 						/>
 					</Card>
 					<Card>
@@ -922,6 +931,70 @@ function CurrencyForm({
 							className="h-12"
 						>
 							{isSubmitting ? "Saving…" : "Save currency"}
+						</Button>
+					);
+				}}
+			</form.Subscribe>
+		</form>
+	);
+}
+
+function NotifyEmailForm({
+	current,
+	onSave,
+}: {
+	current: string;
+	onSave: (notifyEmail: string) => Promise<unknown>;
+}) {
+	const form = useAppForm({
+		defaultValues: { notifyEmail: current },
+		validators: { onChange: settingsNotifyEmailFormSchema },
+		onSubmit: async ({ value }) => {
+			try {
+				await onSave(value.notifyEmail.trim());
+				toast.success("Notification email saved.");
+			} catch (err) {
+				toast.error(convexErrorMessage(err));
+			}
+		},
+	});
+
+	function handleSubmit(e: FormEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		form.handleSubmit();
+	}
+
+	return (
+		<form onSubmit={handleSubmit} className="flex flex-col gap-4">
+			<form.AppField name="notifyEmail">
+				{(field) => (
+					<field.TextField
+						label="Notification email"
+						placeholder="orders@yourstore.com"
+						type="email"
+						inputMode="email"
+						description="We'll email you here whenever a new order arrives or is confirmed in WhatsApp. Leave blank to turn off email notifications."
+					/>
+				)}
+			</form.AppField>
+
+			<form.Subscribe
+				selector={(s) => ({
+					canSubmit: s.canSubmit,
+					isSubmitting: s.isSubmitting,
+					values: s.values,
+				})}
+			>
+				{({ canSubmit, isSubmitting, values }) => {
+					const dirty = values.notifyEmail.trim() !== current.trim();
+					return (
+						<Button
+							type="submit"
+							disabled={!dirty || !canSubmit || isSubmitting}
+							className="h-12"
+						>
+							{isSubmitting ? "Saving…" : "Save email"}
 						</Button>
 					);
 				}}

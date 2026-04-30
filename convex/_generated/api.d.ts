@@ -9,8 +9,12 @@
  */
 
 import type * as crons from "../crons.js";
+import type * as email from "../email.js";
 import type * as http from "../http.js";
+import type * as lib_address from "../lib/address.js";
 import type * as lib_currency from "../lib/currency.js";
+import type * as lib_email from "../lib/email.js";
+import type * as lib_emailCopy from "../lib/emailCopy.js";
 import type * as lib_order from "../lib/order.js";
 import type * as lib_rateLimiter from "../lib/rateLimiter.js";
 import type * as lib_slug from "../lib/slug.js";
@@ -30,8 +34,12 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   crons: typeof crons;
+  email: typeof email;
   http: typeof http;
+  "lib/address": typeof lib_address;
   "lib/currency": typeof lib_currency;
+  "lib/email": typeof lib_email;
+  "lib/emailCopy": typeof lib_emailCopy;
   "lib/order": typeof lib_order;
   "lib/rateLimiter": typeof lib_rateLimiter;
   "lib/slug": typeof lib_slug;

@@ -99,9 +99,39 @@ The database schema already treats WhatsApp as one `channel` on retailers/produc
 
 ## Out of Scope (MVP)
 
-Online payments, Meta Commerce Catalog, Meta business verification, marketplace connectors, marketing / abandoned-cart automations, native mobile apps, advanced analytics.
+Meta Commerce Catalog, Meta business verification, marketplace connectors, marketing / abandoned-cart automations, native mobile apps, advanced analytics.
 
-Payments for MVP: offline / COD / bank transfer. Retailer surfaces payment instructions in the WA confirmation reply.
+Online payments are deferred to the first paid release — see [Payments Architecture](#payments-architecture). For MVP, retailers surface offline / COD / bank-transfer / DuitNow QR instructions in the WA confirmation reply and reconcile by hand.
+
+---
+
+## Payments Architecture
+
+**Kedaipal is a platform, not a PSP — it never touches order money.** Two money flows, two merchants of record:
+
+| Flow | Merchant of record | Entity location |
+|---|---|---|
+| Shopper → Retailer (order payment) | The **retailer** (already SSM-registered as a shop owner) | Malaysia |
+| Retailer → Kedaipal (SaaS subscription) | **Kedaipal** | Singapore |
+
+**Order-payment integration model (post-MVP):**
+- Each retailer brings their own Malaysian gateway account — **CHIP**, **Billplz**, or **ToyyibPay** (the latter accepts personal accounts with no SSM, so it's the easiest on-ramp for the smallest retailers).
+- Retailer pastes API keys + webhook secret into their Kedaipal dashboard.
+- Gateway hits a Convex HTTP action on payment success → order flips to `paid` → WhatsApp confirmation fires automatically.
+- Manual fallback (current MVP): bank transfer / DuitNow QR instructions, reconciled by hand.
+
+**Indicative gateway cost (per successful order, RM ~80 FPX-typical):**
+
+| Gateway | FPX B2C | Card (local) | Setup | Annual |
+|---|---|---|---|---|
+| ToyyibPay | RM 1.00 | ~2.0% (RM 100 add-on) | RM 0 | RM 0 / RM 100 (cards) |
+| CHIP | RM 1.00 | 2.0% | RM 0 | RM 0 |
+| Billplz (Free / Standard) | RM 1.10 / RM 0.70 | ~1.0–2.0% | RM 0 | RM 0 / RM 999 |
+
+**Why this shape:**
+- Avoids PSP / acquiring-bank licensing entirely.
+- Mirrors how Shopee / Lazada / TikTok Shop settle directly to retailers — same architecture extends cleanly to those connectors post-MVP.
+- Removes the founder's foreign-entity blocker (see [Founder & Operating Entity](#founder--operating-entity)) from the critical path.
 
 ---
 
@@ -110,6 +140,16 @@ Payments for MVP: offline / COD / bank transfer. Retailer surfaces payment instr
 - Solo dev-founder. Sub-$5K budget.
 - Target pricing: **RM79–149/month**.
 - Meta setup requires no company registration for MVP: personal Facebook account → free Meta Business Account → WhatsApp Business Account → Developer App → test number. Business verification deferred until real volume.
+
+---
+
+## Founder & Operating Entity
+
+- **Founder:** Arif Rahman — **Singaporean**, currently based in Malaysia.
+- **Operating entity:** Singapore (ACRA) — sole proprietorship for the leanest start, or Pte Ltd if liability separation becomes worth ~SGD 600/yr in secretarial overhead. No special status needed for Singaporeans.
+- **Why not a Malaysian entity:** SSM sole proprietorship is restricted to Malaysian citizens / PRs. A 100% foreign-owned Sdn Bhd in trading / e-commerce requires **RM 1,000,000 paid-up capital** — a non-starter for an MVP. A Malaysian co-founder structure would lower that bar but adds dependency.
+- **SaaS billing:** Stripe Singapore or HitPay (MAS-licensed, supports SGD + cross-border MY methods like FPX, DuitNow QR, TNG, GrabPay). Settled to the SG entity. Final pick deferred until first paid retailer.
+- **Tax flag:** Staying in Malaysia ≥183 days/year can trigger Malaysian personal tax residency on personal income even with the company in SG. Worth a one-hour conversation with a cross-border accountant before scaling revenue — not an MVP blocker.
 
 ---
 
@@ -146,7 +186,9 @@ Payments for MVP: offline / COD / bank transfer. Retailer surfaces payment instr
 
 ## Open Questions
 
-- Final payment gateway for the first paid tier.
-- Inventory source of truth once retailers also sell on Shopee/Lazada (Kedaipal vs sync vs webhook-driven reconciliation).
+- **Stripe Singapore vs HitPay** for SaaS subscription billing — decide at first paid retailer.
+- **First retailer-side gateway to officially support and document end-to-end** — CHIP vs Billplz vs ToyyibPay (each retailer can still bring others later).
+- **SG sole prop vs Pte Ltd** — defer until liability or cap-table considerations force the call.
+- Inventory source of truth once retailers also sell on Shopee / Lazada (Kedaipal vs sync vs webhook-driven reconciliation).
 - Marketplace connector ordering post-MVP (Shopee likely first in MY).
 - Domain status for `kedaipal.com`.

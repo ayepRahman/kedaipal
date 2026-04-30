@@ -18,7 +18,11 @@ const USER = "user_wa_test";
 
 type FetchCall = { url: string; body: unknown };
 
-function installFetchMock(): { calls: FetchCall[]; restore: () => void } {
+function installFetchMock(): {
+	calls: FetchCall[];
+	waCalls: () => FetchCall[];
+	restore: () => void;
+} {
 	const calls: FetchCall[] = [];
 	const original = globalThis.fetch;
 	globalThis.fetch = vi.fn(async (url: unknown, init?: RequestInit) => {
@@ -28,6 +32,10 @@ function installFetchMock(): { calls: FetchCall[]; restore: () => void } {
 	}) as unknown as typeof fetch;
 	return {
 		calls,
+		// Filter to WhatsApp Cloud API (graph.facebook.com) only — retailer-side
+		// emails (api.resend.com) are captured by the same fetch mock and would
+		// otherwise inflate counts in WA-focused tests.
+		waCalls: () => calls.filter((c) => c.url.includes("graph.facebook.com")),
 		restore: () => {
 			globalThis.fetch = original;
 		},
@@ -71,6 +79,12 @@ async function createPendingOrder(
 		currency: "MYR",
 		channel: "whatsapp",
 		customer: { name: "Ali", waPhone: "60123456789" },
+		deliveryAddress: {
+			line1: "12 Jln Mawar 3",
+			city: "Petaling Jaya",
+			state: "Selangor",
+			postcode: "47301",
+		},
 	});
 	return shortId;
 }
@@ -83,6 +97,8 @@ beforeEach(() => {
 	process.env.WHATSAPP_ACCESS_TOKEN = "test-token";
 	process.env.WHATSAPP_PHONE_NUMBER_ID = "test-phone-id";
 	process.env.WHATSAPP_VERIFY_TOKEN = "test-verify";
+	process.env.RESEND_API_KEY = "test-resend";
+	process.env.EMAIL_FROM = "Kedaipal <orders@kedaipal.test>";
 });
 
 afterEach(() => {
@@ -109,13 +125,78 @@ describe("whatsapp inbound", () => {
 		expect(fetchMock.calls[0].url).toContain("test-phone-id/messages");
 		const body = fetchMock.calls[0].body as {
 			type: string;
-			image: { caption: string };
+			interactive: {
+				type: string;
+				header: { type: string; image: { link: string } };
+				body: { text: string };
+				action: { parameters: { display_text: string; url: string } };
+			};
 			to: string;
 		};
 		expect(body.to).toBe("60123456789");
-		expect(body.type).toBe("image");
-		expect(body.image.caption).toContain(shortId);
-		expect(body.image.caption).toContain("confirmed");
+		expect(body.type).toBe("interactive");
+		expect(body.interactive.type).toBe("cta_url");
+		expect(body.interactive.header.image.link).toBe(
+			"https://kedaipal.com/logo-2.png",
+		);
+		expect(body.interactive.action.parameters.display_text).toBe("I've paid");
+		expect(body.interactive.action.parameters.url).toContain(
+			`/track/${shortId}`,
+		);
+		expect(body.interactive.body.text).toContain(shortId);
+		expect(body.interactive.body.text).toContain("confirmed");
+		// System line: shopper must use the order ID as the bank transfer
+		// reference. Hard-coded — even retailer template overrides cannot
+		// suppress it.
+		expect(body.interactive.body.text).toContain(
+			`Use ${shortId} as your transfer reference`,
+		);
+		fetchMock.restore();
+	});
+
+	test("transfer-reference line is locale-aware (ms retailer)", async () => {
+		const t = setup();
+		const fetchMock = installFetchMock();
+		const { retailerId, productId } = await seedRetailerWithLocale(t, "ms");
+		const shortId = await createPendingOrder(t, retailerId, productId);
+
+		await t.action(internal.whatsapp.handleInbound, {
+			fromPhone: "60123456789",
+			text: shortId,
+		});
+		const body = fetchMock.calls[0].body as {
+			type: string;
+			interactive: { body: { text: string } };
+		};
+		expect(body.interactive.body.text).toContain(
+			`Gunakan ${shortId} sebagai rujukan pemindahan`,
+		);
+		fetchMock.restore();
+	});
+
+	test("transfer-reference line is appended even when retailer overrides confirm template", async () => {
+		const t = setup();
+		const fetchMock = installFetchMock();
+		const { retailerId, productId } = await seedRetailerWithLocale(t, "en");
+		const asUser = t.withIdentity({ subject: USER });
+		await asUser.mutation(api.retailers.updateSettings, {
+			messageTemplates: {
+				en: { confirm: "Custom confirm only — no reference info." },
+			},
+		});
+		const shortId = await createPendingOrder(t, retailerId, productId);
+		await t.action(internal.whatsapp.handleInbound, {
+			fromPhone: "60123456789",
+			text: shortId,
+		});
+		const body = fetchMock.calls[0].body as {
+			type: string;
+			interactive: { body: { text: string } };
+		};
+		expect(body.interactive.body.text).toContain("Custom confirm only");
+		expect(body.interactive.body.text).toContain(
+			`Use ${shortId} as your transfer reference`,
+		);
 		fetchMock.restore();
 	});
 
@@ -130,10 +211,13 @@ describe("whatsapp inbound", () => {
 			text: `Pesanan saya ${shortId}`,
 		});
 
-		const body = fetchMock.calls[0].body as { type: string; image: { caption: string } };
-		expect(body.type).toBe("image");
-		expect(body.image.caption).toContain("Pesanan");
-		expect(body.image.caption).toContain("disahkan");
+		const body = fetchMock.calls[0].body as {
+			type: string;
+			interactive: { body: { text: string } };
+		};
+		expect(body.type).toBe("interactive");
+		expect(body.interactive.body.text).toContain("Pesanan");
+		expect(body.interactive.body.text).toContain("disahkan");
 		fetchMock.restore();
 	});
 
@@ -199,18 +283,21 @@ describe("whatsapp inbound", () => {
 			text: shortId,
 		});
 
-		// Only one send (image) — no QR configured.
+		// Only one send (interactive cta_url with image header) — no QR configured.
 		expect(fetchMock.calls).toHaveLength(1);
-		const body = (fetchMock.calls[0].body as { type: string; image: { caption: string } });
-		expect(body.type).toBe("image");
-		const caption = body.image.caption;
-		expect(caption).toContain(shortId);
-		expect(caption).toContain("confirmed");
-		expect(caption).toContain("💳 Payment details");
-		expect(caption).toContain("Bank: Maybank");
-		expect(caption).toContain("Name: Acme Outdoor");
-		expect(caption).toContain("Account: 5123-4567");
-		expect(caption).toContain("Send receipt after transfer.");
+		const body = fetchMock.calls[0].body as {
+			type: string;
+			interactive: { body: { text: string } };
+		};
+		expect(body.type).toBe("interactive");
+		const text = body.interactive.body.text;
+		expect(text).toContain(shortId);
+		expect(text).toContain("confirmed");
+		expect(text).toContain("💳 Payment details");
+		expect(text).toContain("Bank: Maybank");
+		expect(text).toContain("Name: Acme Outdoor");
+		expect(text).toContain("Account: 5123-4567");
+		expect(text).toContain("Send receipt after transfer.");
 		fetchMock.restore();
 	});
 
@@ -229,13 +316,16 @@ describe("whatsapp inbound", () => {
 			text: shortId,
 		});
 
-		const body = (fetchMock.calls[0].body as { type: string; image: { caption: string } });
-		expect(body.type).toBe("image");
-		const caption = body.image.caption;
-		expect(caption).toContain("disahkan");
-		expect(caption).toContain("💳 Maklumat pembayaran");
-		expect(caption).toContain("Bank: CIMB");
-		expect(caption).toContain("Akaun: 9988");
+		const body = fetchMock.calls[0].body as {
+			type: string;
+			interactive: { body: { text: string } };
+		};
+		expect(body.type).toBe("interactive");
+		const text = body.interactive.body.text;
+		expect(text).toContain("disahkan");
+		expect(text).toContain("💳 Maklumat pembayaran");
+		expect(text).toContain("Bank: CIMB");
+		expect(text).toContain("Akaun: 9988");
 		fetchMock.restore();
 	});
 
@@ -266,14 +356,16 @@ describe("whatsapp inbound", () => {
 			text: shortId,
 		});
 
-		// Two sends: image confirm (logo + caption) + image QR
+		// Two sends: interactive cta_url confirm + image QR follow-up
 		expect(fetchMock.calls).toHaveLength(2);
 		const confirmBody = fetchMock.calls[0].body as {
 			type: string;
-			image: { link: string; caption: string };
+			interactive: { body: { text: string } };
 		};
-		expect(confirmBody.type).toBe("image");
-		expect(confirmBody.image.caption).toContain("Scan to pay via DuitNow.");
+		expect(confirmBody.type).toBe("interactive");
+		expect(confirmBody.interactive.body.text).toContain(
+			"Scan to pay via DuitNow.",
+		);
 
 		const qrBody = fetchMock.calls[1].body as {
 			type: string;
@@ -297,10 +389,13 @@ describe("whatsapp inbound", () => {
 		});
 
 		expect(fetchMock.calls).toHaveLength(1);
-		const body = (fetchMock.calls[0].body as { type: string; image: { caption: string } });
-		expect(body.type).toBe("image");
-		expect(body.image.caption).not.toContain("💳");
-		expect(body.image.caption).not.toContain("Payment details");
+		const body = fetchMock.calls[0].body as {
+			type: string;
+			interactive: { body: { text: string } };
+		};
+		expect(body.type).toBe("interactive");
+		expect(body.interactive.body.text).not.toContain("💳");
+		expect(body.interactive.body.text).not.toContain("Payment details");
 		fetchMock.restore();
 	});
 
@@ -386,14 +481,20 @@ describe("whatsapp outbound on status change", () => {
 		const shortId = await createPendingOrder(t, retailerId, productId);
 		
 
-		// Confirm via inbound — should use custom confirm template
+		// Confirm via inbound — should use custom confirm template, with the
+		// non-overridable transfer-reference line appended below it.
 		await t.action(internal.whatsapp.handleInbound, {
 			fromPhone: "60123456789",
 			text: shortId,
 		});
-		const confirmBody = (fetchMock.calls[0].body as { type: string; image: { caption: string } });
-		expect(confirmBody.type).toBe("image");
-		expect(confirmBody.image.caption).toBe(`Yo ${shortId}! Thanks from Test Outdoor 🙌`);
+		const confirmBody = fetchMock.calls[0].body as {
+			type: string;
+			interactive: { body: { text: string } };
+		};
+		expect(confirmBody.type).toBe("interactive");
+		expect(confirmBody.interactive.body.text).toBe(
+			`Yo ${shortId}! Thanks from Test Outdoor 🙌\n\nUse ${shortId} as your transfer reference so we can match it.`,
+		);
 		fetchMock.calls.length = 0;
 
 		// Packed via direct status patch — should use custom packed template
@@ -486,6 +587,87 @@ describe("whatsapp outbound on status change", () => {
 			});
 		});
 		await t.action(internal.whatsapp.notifyStatusChange, { orderId });
+		expect(fetchMock.calls).toHaveLength(0);
+		fetchMock.restore();
+	});
+});
+
+describe("whatsapp payment received", () => {
+	test("notifyPaymentReceived sends localized message to customer (en)", async () => {
+		const t = setup();
+		const fetchMock = installFetchMock();
+		const { retailerId, productId } = await seedRetailerWithLocale(t, "en");
+		const shortId = await createPendingOrder(t, retailerId, productId);
+		// Run an inbound to confirm + populate waPhone, then clear the mock.
+		await t.action(internal.whatsapp.handleInbound, {
+			fromPhone: "60123456789",
+			text: shortId,
+		});
+		fetchMock.calls.length = 0;
+
+		const order = await t.query(api.orders.get, { shortId });
+		await t.action(internal.whatsapp.notifyPaymentReceived, {
+			orderId: order!._id,
+		});
+
+		const sent = fetchMock.calls.find((call) => {
+			const body = call.body as { text?: { body?: string } };
+			return body?.text?.body?.includes("Payment received");
+		});
+		expect(sent).toBeDefined();
+		const body = sent!.body as { to: string; text: { body: string } };
+		expect(body.to).toBe("60123456789");
+		expect(body.text.body).toContain(shortId);
+		fetchMock.restore();
+	});
+
+	test("notifyPaymentReceived uses Bahasa Malaysia for ms retailer", async () => {
+		const t = setup();
+		const fetchMock = installFetchMock();
+		const { retailerId, productId } = await seedRetailerWithLocale(t, "ms");
+		const shortId = await createPendingOrder(t, retailerId, productId);
+		await t.action(internal.whatsapp.handleInbound, {
+			fromPhone: "60123456789",
+			text: shortId,
+		});
+		fetchMock.calls.length = 0;
+
+		const order = await t.query(api.orders.get, { shortId });
+		await t.action(internal.whatsapp.notifyPaymentReceived, {
+			orderId: order!._id,
+		});
+
+		const sent = fetchMock.calls.find((call) => {
+			const body = call.body as { text?: { body?: string } };
+			return body?.text?.body?.includes("Pembayaran diterima");
+		});
+		expect(sent).toBeDefined();
+		fetchMock.restore();
+	});
+
+	test("notifyPaymentReceived skips when customer has no waPhone", async () => {
+		const t = setup();
+		const fetchMock = installFetchMock();
+		const { retailerId, productId } = await seedRetailerWithLocale(t, "en");
+		const orderId = await t.run(async (ctx) => {
+			const now = Date.now();
+			return ctx.db.insert("orders", {
+				retailerId,
+				shortId: "ORD-NOPH",
+				items: [
+					{ productId, name: "Tent 2P", price: 12000, quantity: 1 },
+				],
+				subtotal: 12000,
+				total: 12000,
+				currency: "MYR",
+				status: "pending",
+				channel: "whatsapp",
+				customer: {},
+				createdAt: now,
+				updatedAt: now,
+			});
+		});
+		await t.action(internal.whatsapp.notifyPaymentReceived, { orderId });
 		expect(fetchMock.calls).toHaveLength(0);
 		fetchMock.restore();
 	});

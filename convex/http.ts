@@ -43,6 +43,10 @@ http.route({
 		}
 
 		const messages = extractTextMessages(payload);
+		console.log("WA webhook POST", {
+			messageCount: messages.length,
+			firstFrom: messages[0]?.from,
+		});
 		for (const msg of messages) {
 			await ctx.runAction(internal.whatsapp.handleInbound, {
 				fromPhone: msg.from,

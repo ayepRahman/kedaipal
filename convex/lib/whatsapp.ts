@@ -85,6 +85,30 @@ export async function sendCtaUrlButton(
 	});
 }
 
+export async function sendCtaUrlWithImage(
+	toPhone: string,
+	imageLink: string,
+	body: string,
+	buttonText: string,
+	url: string,
+): Promise<void> {
+	await postMessage({
+		messaging_product: "whatsapp",
+		recipient_type: "individual",
+		to: toPhone,
+		type: "interactive",
+		interactive: {
+			type: "cta_url",
+			header: { type: "image", image: { link: imageLink } },
+			body: { text: body },
+			action: {
+				name: "cta_url",
+				parameters: { display_text: buttonText, url },
+			},
+		},
+	});
+}
+
 export async function sendTemplate(
 	toPhone: string,
 	templateName: string,

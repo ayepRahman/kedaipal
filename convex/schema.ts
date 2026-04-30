@@ -12,6 +12,12 @@ export default defineSchema({
 		slug: v.string(),
 		storeName: v.string(),
 		waPhone: v.optional(v.string()),
+		// Email address for retailer-facing operational notifications
+		// (new orders, payment claims, etc.). Independent of the Clerk auth
+		// email so retailers can route alerts to a shared ops inbox.
+		// When unset, the retailer simply receives no email notifications —
+		// behaviour mirrors the WhatsApp waPhone field above.
+		notifyEmail: v.optional(v.string()),
 		// Convex storage ID for the store's logo. Public — surfaced on the
 		// storefront header, dashboard hero, and as the OG image fallback.
 		logoStorageId: v.optional(v.string()),
@@ -124,15 +130,47 @@ export default defineSchema({
 		deliveryMethod: v.optional(
 			v.union(v.literal("delivery"), v.literal("self_collect")),
 		),
+		// Structured shipping address. Required when deliveryMethod === "delivery"
+		// and forbidden when "self_collect" — invariant enforced in orders.create.
+		// Validated/sanitized server-side via convex/lib/address.ts.
+		deliveryAddress: v.optional(
+			v.object({
+				line1: v.string(),
+				line2: v.optional(v.string()),
+				city: v.string(),
+				state: v.string(),
+				postcode: v.string(),
+				notes: v.optional(v.string()),
+				mapsUrl: v.optional(v.string()),
+			}),
+		),
 		// Optional external carrier tracking URL set by the retailer when marking
 		// shipped. Surfaced on the customer tracking page and included in the
 		// WhatsApp shipped notification. Only relevant for delivery orders.
 		carrierTrackingUrl: v.optional(v.string()),
+		// Payment handshake — independent of the fulfilment status pipeline above.
+		// `unpaid` (or undefined) → shopper hasn't claimed payment yet.
+		// `claimed` → shopper tapped "I've paid" on the tracking page.
+		// `received` → retailer confirmed the money landed in their bank app.
+		// A future PSP webhook can short-circuit straight to "received" without
+		// the manual claim step — same end state.
+		paymentStatus: v.optional(
+			v.union(
+				v.literal("unpaid"),
+				v.literal("claimed"),
+				v.literal("received"),
+			),
+		),
+		paymentReference: v.optional(v.string()),
+		paymentClaimedAt: v.optional(v.number()),
+		paymentReceivedAt: v.optional(v.number()),
+		paymentProofStorageId: v.optional(v.string()),
 		createdAt: v.number(),
 		updatedAt: v.number(),
 	})
 		.index("by_retailer", ["retailerId"])
 		.index("by_retailer_status", ["retailerId", "status"])
+		.index("by_retailer_payment", ["retailerId", "paymentStatus"])
 		.index("by_shortId", ["shortId"]),
 
 	orderEvents: defineTable({
