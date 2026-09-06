@@ -49,6 +49,15 @@ export default defineSchema({
 		// logoStorageId. See docs/store-cover-banner.md.
 		coverImageStorageId: v.optional(v.string()),
 		currency: v.optional(v.string()),
+		// Marketing source the SELLER arrived from (z8r3fdd1v0) — the `?src=` /
+		// `utm_source` tag on their first marketing-route hit, carried through
+		// sign-up in sessionStorage and stamped once at createRetailer after a
+		// server-side re-sanitize (sanitizeAttributionSource — the client value
+		// is never trusted). Absent = untagged/direct, so nothing backfills —
+		// the seller-side sibling of `orders.attributionSource` (86eyq0eq9),
+		// same posture: per-row read only, no index. Surfaced in the admin
+		// sellers table; naming convention lives in src/lib/marketing-attribution.
+		signupSource: v.optional(v.string()),
 		// Store country (SG-lite, 86eynw27f). The one switch every country-shaped
 		// rule reads: checkout phone plate/validator arm, address variant, Places
 		// autocomplete region, and the currency a new store defaults to. Undefined

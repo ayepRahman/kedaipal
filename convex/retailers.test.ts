@@ -576,6 +576,57 @@ describe("retailers legal consent", () => {
 		expect("acceptanceIp" in (row ?? {})).toBe(false);
 	});
 
+	test("createRetailer stores the sanitized signupSource on the row", async () => {
+		const t = setup();
+		const asA = t.withIdentity({ subject: USER_A });
+		await asA.mutation(api.retailers.createRetailer, {
+			storeName: "Tagged Store",
+			slug: "tagged",
+			signupSource: "Spotlight-THG",
+		});
+
+		const row = await readRetailer(t, USER_A);
+		expect(row?.signupSource).toBe("spotlight-thg");
+	});
+
+	test("createRetailer re-sanitizes signupSource server-side — garbage stores as 'other', never verbatim", async () => {
+		const t = setup();
+		const asA = t.withIdentity({ subject: USER_A });
+		await asA.mutation(api.retailers.createRetailer, {
+			storeName: "Tampered Store",
+			slug: "tampered",
+			signupSource: "###%%%###",
+		});
+
+		const row = await readRetailer(t, USER_A);
+		expect(row?.signupSource).toBe("other");
+	});
+
+	test("createRetailer without signupSource leaves the field absent (= untagged)", async () => {
+		const t = setup();
+		const asA = t.withIdentity({ subject: USER_A });
+		await asA.mutation(api.retailers.createRetailer, {
+			storeName: "Untagged Store",
+			slug: "untagged",
+		});
+
+		const row = await readRetailer(t, USER_A);
+		expect(row?.signupSource).toBeUndefined();
+	});
+
+	test("createRetailer treats a blank signupSource as absent, not 'other'", async () => {
+		const t = setup();
+		const asA = t.withIdentity({ subject: USER_A });
+		await asA.mutation(api.retailers.createRetailer, {
+			storeName: "Blank Store",
+			slug: "blank",
+			signupSource: "   ",
+		});
+
+		const row = await readRetailer(t, USER_A);
+		expect(row?.signupSource).toBeUndefined();
+	});
+
 	test("getMyRetailer exposes accepted versions", async () => {
 		const t = setup();
 		const asA = await seed(t, USER_A, "expose");

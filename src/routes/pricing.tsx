@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Check, Minus, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import {
 	type AnnualQuote,
@@ -30,8 +30,10 @@ import { MoneyMathRow } from "../components/landing/money-math";
 import { Nav } from "../components/landing/nav";
 import { Button } from "../components/ui/button";
 import { useLandingRegion } from "../hooks/useLandingRegion";
+import { useMarketingLanding } from "../hooks/useMarketingLanding";
 import { useSupportWaNumber } from "../hooks/useSupportWaNumber";
 import { buildWaContactLink } from "../lib/contact";
+import { trackEvent, trackSignupCta } from "../lib/ga-events";
 import { resolveTierCta } from "../lib/pricing-cta";
 import type { SubscriptionView } from "../lib/subscription";
 import { cn } from "../lib/utils";
@@ -613,7 +615,11 @@ function TierCard({
 						variant={tier.popular ? "default" : "outline"}
 					>
 						{cta === "trial" ? (
-							<Link to="/sign-up/$" params={{ _splat: "" }}>
+							<Link
+								to="/sign-up/$"
+								params={{ _splat: "" }}
+								onClick={() => trackSignupCta(`pricing-card-${tier.id}`)}
+							>
 								{tier.cta} <ArrowRight className="size-4" />
 							</Link>
 						) : cta === "dashboard" ? (
@@ -649,6 +655,12 @@ function TierCard({
 }
 
 function PricingPage() {
+	// GA4 funnel (z8r3fdd1v0): capture ?src= + land_marketing, then the
+	// pricing-specific step — every pricing view counts, unlike the landing.
+	useMarketingLanding();
+	useEffect(() => {
+		trackEvent("view_pricing");
+	}, []);
 	const [cycle, setCycle] = useState<Cycle>("monthly");
 	const { isLoaded, isSignedIn } = useAuth();
 	// Only signed-in sellers need their plan; skip the query for visitors. A
@@ -977,6 +989,7 @@ function PricingPage() {
 								to="/sign-up/$"
 								params={{ _splat: "" }}
 								className={ctaPillClass("accent")}
+								onClick={() => trackSignupCta("pricing-bottom")}
 							>
 								{m.pricingpage_cta_trial_btn()}{" "}
 								<ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
