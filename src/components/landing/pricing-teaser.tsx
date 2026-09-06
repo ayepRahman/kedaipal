@@ -12,9 +12,9 @@ import {
 	starterPricePerDay,
 } from "../../../convex/lib/plans";
 import { useLandingRegion } from "../../hooks/useLandingRegion";
+import { trackSignupCta } from "../../lib/ga-events";
 import { cn } from "../../lib/utils";
 import { m } from "../../paraglide/messages";
-import { trackSignupCta } from "../../lib/ga-events";
 import { Button } from "../ui/button";
 import { FadeIn } from "./fade-in";
 import {

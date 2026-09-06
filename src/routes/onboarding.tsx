@@ -25,13 +25,11 @@ import {
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { MyPhoneInput } from "../components/ui/my-phone-input";
+import { useOnboardingStart } from "../hooks/useOnboardingStart";
 import { useSlugAvailability } from "../hooks/useSlugAvailability";
 import { convexErrorMessage } from "../lib/format";
 import { trackEvent } from "../lib/ga-events";
-import {
-	captureMarketingSource,
-	readMarketingSource,
-} from "../lib/marketing-attribution";
+import { readMarketingSource } from "../lib/marketing-attribution";
 import {
 	decodeOnboardingPrefill,
 	type OnboardingPrefill,
@@ -99,14 +97,10 @@ function OnboardingForm() {
 	const prefill = search.prefill;
 	const assisted = Boolean(prefill);
 
-	// GA4 funnel (z8r3fdd1v0): the signed-in seller reached the store-creation
-	// form. Capture first — normally the ?src= tag was stored back on the
-	// marketing route and rode sessionStorage through the Clerk redirect, but a
-	// directly shared /onboarding?src=… link should count too.
-	useEffect(() => {
-		captureMarketingSource(window.location.search);
-		trackEvent("onboarding_start");
-	}, []);
+	// GA4 funnel (z8r3fdd1v0): fires onboarding_start only once the query says
+	// "no store yet" — an already-onboarded seller landing here gets redirected
+	// below and must not count as a funnel entry.
+	useOnboardingStart(retailer);
 
 	const [storeName, setStoreName] = useState(prefill?.store ?? "");
 	const [slug, setSlug] = useState(prefill?.slug ?? "");

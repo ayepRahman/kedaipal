@@ -61,7 +61,7 @@ root's pageview effect).
 | `view_pricing` | every `/pricing` mount | `pricing.tsx` |
 | `calc_used` | first calculator input change per visit | `cost.tsx` (`syncToUrl` choke point) |
 | `cta_signup_click` | every signup CTA click, `placement` param (`nav`, `nav-mobile`, `hero`, `hero-secondary`, `final-cta`, `pricing-teaser-<tier>`, `pricing-card-<tier>`, `pricing-bottom`) | landing components + `pricing.tsx` via `trackSignupCta` |
-| `onboarding_start` | signed-in seller reaches the store-creation form | `onboarding.tsx` |
+| `onboarding_start` | signed-in seller reaches the store-creation form AND the retailer query resolved to "no store yet" — an already-onboarded seller hitting `/onboarding` gets redirected, never counted | `onboarding.tsx` via [`useOnboardingStart`](../src/hooks/useOnboardingStart.ts) |
 | `store_created` | `createRetailer` succeeded (never on validation failure) | `onboarding.tsx` |
 
 **Every event auto-carries the `src` param** when the session arrived tagged:

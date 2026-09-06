@@ -16,6 +16,19 @@ import { readMarketingSource } from "./marketing-attribution";
  * `land_marketing` on mount must not race the pageview hook's init.
  */
 
+/**
+ * The funnel event catalog — the ONLY names `trackEvent` accepts, so a typo'd
+ * call site is a compile error, not a stray GA4 event nobody notices (GA
+ * validates nothing at send time). Widen here, and mirror docs/analytics.md.
+ */
+export type FunnelEvent =
+	| "land_marketing"
+	| "view_pricing"
+	| "calc_used"
+	| "cta_signup_click"
+	| "onboarding_start"
+	| "store_created";
+
 let gaInitialized = false;
 
 /**
@@ -45,7 +58,7 @@ export function ensureGaInitialized(pathname: string): boolean {
  * must never break the page.
  */
 export function trackEvent(
-	name: string,
+	name: FunnelEvent,
 	params?: Record<string, string | number | boolean>,
 ): void {
 	try {
