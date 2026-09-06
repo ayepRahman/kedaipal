@@ -187,6 +187,7 @@ import {
 	type StoredAwbConfig,
 } from "./lib/awbConfig";
 import { sanitizeAttributionSource } from "./lib/attribution";
+import { isValidGaClientId } from "./lib/ga4";
 import { DEFAULT_LOCALE, type Locale } from "./lib/locale";
 import { MAX_NOTICE_DAYS } from "./lib/fulfilmentDate";
 import { sanitizeMinOrderValue } from "./lib/minOrderRules";
@@ -1311,6 +1312,10 @@ export const createRetailer = mutation({
 		// src/lib/marketing-attribution.ts). Re-sanitized here: the client value
 		// is a hint, never trusted verbatim.
 		signupSource: v.optional(v.string()),
+		// GA4 client id from the seller's `_ga` cookie (z8r3fdd1v1), so the
+		// server-side key events stitch to their client-side funnel. A hint like
+		// signupSource: validated here (wire format only), dropped otherwise.
+		gaClientId: v.optional(v.string()),
 	},
 	handler: async (ctx, args): Promise<{ slug: string }> => {
 		const identity = await ctx.auth.getUserIdentity();
@@ -1372,6 +1377,12 @@ export const createRetailer = mutation({
 		// Absent/blank → undefined (untagged), present-but-garbage → "other" —
 		// identical semantics to orders.attributionSource.
 		const signupSource = sanitizeAttributionSource(args.signupSource);
+		// Wire-format check only — a malformed value is dropped (unlike
+		// signupSource's "other" bucket: a garbage client id has no signal value).
+		const gaClientId =
+			args.gaClientId !== undefined && isValidGaClientId(args.gaClientId)
+				? args.gaClientId
+				: undefined;
 
 		const now = Date.now();
 		// Consent is implied: the onboarding UI gates submission on a required,
@@ -1389,6 +1400,7 @@ export const createRetailer = mutation({
 			currency: COUNTRY_CURRENCY[country],
 			...(args.country !== undefined ? { country: args.country } : {}),
 			...(signupSource !== undefined ? { signupSource } : {}),
+			...(gaClientId !== undefined ? { gaClientId } : {}),
 			channel: "whatsapp",
 			// Default self-collect ON so new retailers discover the pickup feature
 			// in the onboarding checklist. They can toggle it off from Settings →

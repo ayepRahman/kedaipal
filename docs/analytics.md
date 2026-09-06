@@ -86,6 +86,61 @@ sanitize and store verbatim.
 event") so funnel/conversion reports treat them as conversions. Events appear
 in DebugView immediately; standard reports lag ~24h.
 
+## Server-side key events (z8r3fdd1v1)
+
+Activation = the retailer's first REAL order reaching confirmed, and
+subscription revenue lands at admin mark-paid — both happen in **Convex**,
+usually while the seller's browser is closed, so no client event can observe
+them. Two server events extend the funnel past `store_created` via the GA4
+**Measurement Protocol** (server → GA4 HTTPS POST):
+
+| Event | Fires | Scheduled from |
+| --- | --- | --- |
+| `first_order` | ONCE per retailer ever — the moment `retailers.activatedAt` transitions unset → set (the existing write-once activation stamp IS the dedupe guard; all 8 confirm sites go through it) | [`stampRetailerActivation`](../convex/lib/activation.ts) |
+| `subscribe_paid` | every `invoices.markPaid` — renewals too, distinguished by `first_time`; carries `plan`, `cycle`, `value` (major units) + `currency` so revenue segments by channel | [`invoices.markPaid`](../convex/invoices.ts) |
+
+Both carry the retailer's stored **`src`** (`retailers.signupSource`), so the
+whole funnel — `land_marketing → … → store_created → first_order →
+subscribe_paid` — segments by acquisition channel end to end.
+
+**Delivery contract:** mutations schedule
+[`internal.ga4Events.sendKeyEvent`](../convex/ga4Events.ts) fire-and-forget
+(`ctx.scheduler.runAfter(0, …)` — transactional, so nothing fires on
+rollback); the action no-ops without env config and swallows every network
+failure. **Analytics can never block or roll back an order or a payment.**
+The pure payload builder + server event catalog live in
+[`convex/lib/ga4.ts`](../convex/lib/ga4.ts) — a deliberately separate catalog
+from the client's `FunnelEvent` (the client module boots react-ga4 and reads
+sessionStorage; a Convex action can't import it).
+
+**Funnel stitching — `retailers.gaClientId`:** MP events only join the
+client-side journey in Funnel Exploration when they carry the SAME
+`client_id` GA assigned in the browser. The onboarding submit reads the `_ga`
+cookie (`readGaClientId` in `ga-events.ts`, parser shared with the server in
+`ga4.ts`) and `createRetailer` stores it — wire-format validated
+(`^\d+\.\d+$`), garbage dropped. When absent (ad-blocker, GA unbooted) the
+emitter falls back to a **synthetic id** derived from the retailer id:
+events still count and segment by `src`, but won't stitch to that browser's
+funnel. Known GA4 limitation either way: MP events carry no `session_id`, so
+they show in user-scoped explorations and key-event counts but can read as
+"unassigned" in some session-scoped standard reports.
+
+**Convex env vars (prod deployment — release-checklist items):**
+
+| Var | Value |
+| --- | --- |
+| `GA4_MEASUREMENT_ID` | The same `G-…` id as `VITE_GA_MEASUREMENT_ID` |
+| `GA4_MP_API_SECRET` | GA4 UI → Admin → Data streams → *stream* → Measurement Protocol API secrets → Create |
+
+Both unset (local dev, preview) → the action is a silent no-op, same posture
+as the client providers.
+
+**Operator steps (GA4 UI, once per property):** create the MP API secret
+(above), set both Convex env vars, then mark `first_order` and
+`subscribe_paid` as **key events** (Admin → Events). Verify with a test
+retailer's first confirmed order in Realtime/DebugView (server events appear
+within minutes), then check Funnel Exploration segments by `src`.
+
 ## Configuration
 
 - **Local:** copy the `VITE_CLARITY_PROJECT_ID` line from `.env.local.example`

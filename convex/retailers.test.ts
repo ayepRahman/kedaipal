@@ -627,6 +627,32 @@ describe("retailers legal consent", () => {
 		expect(row?.signupSource).toBeUndefined();
 	});
 
+	test("createRetailer stores a wire-format gaClientId on the row", async () => {
+		const t = setup();
+		const asA = t.withIdentity({ subject: USER_A });
+		await asA.mutation(api.retailers.createRetailer, {
+			storeName: "Stitched Store",
+			slug: "stitched",
+			gaClientId: "123456789.987654321",
+		});
+
+		const row = await readRetailer(t, USER_A);
+		expect(row?.gaClientId).toBe("123456789.987654321");
+	});
+
+	test("createRetailer drops a malformed gaClientId — never stores garbage", async () => {
+		const t = setup();
+		const asA = t.withIdentity({ subject: USER_A });
+		await asA.mutation(api.retailers.createRetailer, {
+			storeName: "Garbage Cid Store",
+			slug: "garbage-cid",
+			gaClientId: "GA1.1.not.numeric.at-all",
+		});
+
+		const row = await readRetailer(t, USER_A);
+		expect(row?.gaClientId).toBeUndefined();
+	});
+
 	test("getMyRetailer exposes accepted versions", async () => {
 		const t = setup();
 		const asA = await seed(t, USER_A, "expose");
