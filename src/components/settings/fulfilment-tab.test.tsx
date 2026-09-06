@@ -729,3 +729,74 @@ describe("live courier pricing (z8r3fdbvdy)", () => {
 		expect(container.textContent).toContain("Default vehicle");
 	});
 })
+
+describe("live-mode saves respect the toggles (Zaki, 6 Sep)", () => {
+	let updateSettings: ReturnType<typeof vi.fn>;
+
+	beforeEach(() => {
+		updateSettings = vi.fn().mockResolvedValue({ ok: true });
+		vi.mocked(useQuery).mockImplementation(((opts: {
+			__fn: FunctionReference<"query">;
+		}) => ({
+			data: getFunctionName(opts.__fn) === NAME.listLocations ? [] : undefined,
+			isPending: false,
+		})) as never);
+		vi.mocked(useMutation).mockImplementation(((
+			ref: FunctionReference<"mutation">,
+		) =>
+			getFunctionName(ref) === NAME.updateSettings
+				? updateSettings
+				: vi.fn().mockResolvedValue(undefined)) as never);
+	});
+	afterEach(() => {
+		cleanup();
+		window.sessionStorage.clear();
+	});
+
+	function renderArmed(bookingEnabled: boolean) {
+		return render(
+			<ActAsProvider>
+				<FulfilmentTab
+					retailerId={SELLER_ID as never}
+					country="MY"
+					currency="MYR"
+					offerSelfCollect={false}
+					offerDelivery={true}
+					deliveryConfig={{ mode: "live", onUnquotable: "block" }}
+					businessAddress={{ label: "HQ", latitude: 3.1, longitude: 101.6 }}
+					deliveryBooking={{
+						enabled: bookingEnabled,
+						vehicleType: "MOTORCYCLE",
+						hasCredentials: true,
+						promptBookOnPacked: false,
+						deliveryDirection: "standard",
+						apiKeyHint: "abcd",
+					}}
+					minFulfilmentNoticeDays={undefined}
+					openingHours={undefined}
+					minOrderValue={undefined}
+					awbConfig={undefined}
+					subscription={undefined}
+				/>
+			</ActAsProvider>,
+		);
+	}
+
+	it("saving live pricing never force-re-arms rider booking", async () => {
+		renderArmed(true);
+		fireEvent.click(screen.getByRole("button", { name: "Save live pricing" }));
+		await waitFor(() => expect(updateSettings).toHaveBeenCalled());
+		// The toggles own the bidders — a save must not overwrite them.
+		expect(updateSettings.mock.calls[0][0].deliveryBooking).toBeUndefined();
+	});
+
+	it("refuses the save when nothing is ARMED — keys alone don't bid", async () => {
+		const { container } = renderArmed(false);
+		fireEvent.click(screen.getByRole("button", { name: "Save live pricing" }));
+		await new Promise((r) => setTimeout(r, 10));
+		expect(updateSettings).not.toHaveBeenCalled();
+		expect(container.textContent).toContain(
+			"Turn on at least one service under Courier booking",
+		);
+	});
+})

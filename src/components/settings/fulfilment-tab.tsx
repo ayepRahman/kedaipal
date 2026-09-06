@@ -863,6 +863,10 @@ function DeliveryChargeSection({
 	).data;
 	const delyvaArmed =
 		delyvaSettings?.connected === true && delyvaSettings.enabled === true;
+	// What actually BIDS at checkout is the Courier-booking toggle, not the
+	// mere presence of keys — liveQuote gates on deliveryBooking.enabled, so
+	// every surface here mirrors that or the panel lies about the quote.
+	const lalamoveArmed = hasStoredKey && deliveryBooking?.enabled === true;
 	// One tile covers both live modes: "lalamove" is the pre-migration
 	// spelling of the same choice, so a store still on it shows as selected
 	// rather than as nothing-picked.
@@ -1008,11 +1012,15 @@ function DeliveryChargeSection({
 				);
 				return;
 			}
-			// At least ONE provider must be connectable, or every checkout would
-			// block. Which one doesn't matter — the mode prices whatever is armed.
-			if (!hasStoredKey && !delyvaArmed) {
+			// At least ONE provider must be ARMED, or every checkout would block.
+			// Armed — not merely connected: the checkout quotes exactly what the
+			// Courier-booking toggles say (Zaki, 6 Sep — vendors choose their
+			// providers; the mode just needs one left on).
+			if (!lalamoveArmed && !delyvaArmed) {
 				setError(
-					"Connect Lalamove or Delyva under Settings → Integrations first — live prices run on your own accounts.",
+					hasStoredKey || delyvaSettings?.connected
+						? "Turn on at least one service under Courier booking below — live pricing quotes whatever is switched on."
+						: "Connect Lalamove or Delyva under Settings → Integrations first — live prices run on your own accounts.",
 				);
 				return;
 			}
@@ -1051,8 +1059,12 @@ function DeliveryChargeSection({
 			// under Courier booking below, and a weight-priced store may keep
 			// riders armed beside Delyva. Keys never ride this save — they live in
 			// Settings → Integrations.
+			// Only the LEGACY single-provider mode arms rider booking as part of
+			// the save (pricing literally runs on those credentials). The live
+			// mode reads the toggles — re-arming Lalamove on every save would
+			// override a vendor who deliberately switched it off (Zaki, 6 Sep).
 			const bookingPatch =
-				(mode === "live" || mode === "lalamove") && hasStoredKey
+				mode === "lalamove" && hasStoredKey
 					? {
 							deliveryBooking: {
 								enabled: true,
@@ -1210,13 +1222,15 @@ function DeliveryChargeSection({
 							name="Riders"
 							detail="Same-day, around your city"
 							status={
-								hasStoredKey
+								lalamoveArmed
 									? deliveryBooking?.env === "sandbox"
 										? "test"
 										: deliveryBooking?.env === "production"
 											? "live"
 											: "connected"
-									: "off"
+									: hasStoredKey
+										? "paused"
+										: "off"
 							}
 						/>
 						<ProviderPricingRow
@@ -1235,12 +1249,12 @@ function DeliveryChargeSection({
 							}
 						/>
 						<p className="text-xs leading-relaxed text-muted-foreground">
-							{hasStoredKey && delyvaArmed ? (
+							{lalamoveArmed && delyvaArmed ? (
 								<>
 									Both get quoted and the buyer pays the <b>higher</b> — book
 									the cheaper one and the difference is yours.
 								</>
-							) : hasStoredKey || delyvaArmed ? (
+							) : lalamoveArmed || delyvaArmed ? (
 								<>
 									One provider quotes today. Arm the other under{" "}
 									<b>Courier booking</b> below and the buyer pays the higher of
@@ -1265,7 +1279,7 @@ function DeliveryChargeSection({
 						    in test — the old version was a Lalamove-only banner that
 						    could show on a store with no Lalamove keys at all, while a
 						    Delyva demo account got no warning here (Zaki, 4 Sep). */}
-						{(hasStoredKey && deliveryBooking?.env === "sandbox") ||
+						{(lalamoveArmed && deliveryBooking?.env === "sandbox") ||
 						(delyvaArmed && delyvaSettings?.isDemo) ? (
 							<p className="flex items-start gap-2 rounded-lg bg-amber-100 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
 								<FlaskConical className="mt-0.5 size-3.5 shrink-0" />
