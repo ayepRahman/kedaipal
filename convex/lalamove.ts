@@ -337,6 +337,7 @@ export async function fetchLalamoveQuote(args: {
 				"/v3/quotations",
 				buildQuotationBody({
 					serviceType: context.vehicleType,
+					market: credentials.market,
 					scheduleAt,
 					// Collection service quotes the trip the rider will actually
 					// drive (buyer → store); route prices aren't guaranteed
@@ -1072,6 +1073,7 @@ export const prepareBooking = action({
 				"/v3/quotations",
 				buildQuotationBody({
 					serviceType: vehicleType,
+					market: context.credentials.market,
 					scheduleAt: scheduledFor,
 					stops: [
 						{
@@ -1899,6 +1901,7 @@ export const devProbeScheduleAt = internalAction({
 					"/v3/quotations",
 					buildQuotationBody({
 						serviceType: "MOTORCYCLE",
+						market: probe.credentials.market,
 						scheduleAt: at,
 						stops: [
 							{
