@@ -123,3 +123,19 @@ describe("trackSignupCta", () => {
 		});
 	});
 });
+
+describe("readGaClientId", () => {
+	it("reads the client id from the _ga cookie", async () => {
+		const { readGaClientId } = await loadGaEvents();
+		// biome-ignore lint/suspicious/noDocumentCookie: jsdom has no Cookie Store API; the code under test reads document.cookie.
+		document.cookie = "_ga=GA1.1.123456789.987654321";
+		expect(readGaClientId()).toBe("123456789.987654321");
+	});
+
+	it("returns undefined when no _ga cookie exists", async () => {
+		const { readGaClientId } = await loadGaEvents();
+		// biome-ignore lint/suspicious/noDocumentCookie: jsdom has no Cookie Store API; expiring the cookie set by the previous test.
+		document.cookie = "_ga=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+		expect(readGaClientId()).toBeUndefined();
+	});
+});

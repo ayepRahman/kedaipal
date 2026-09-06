@@ -1,4 +1,5 @@
 import ReactGA from "react-ga4";
+import { extractGaClientId } from "../../convex/lib/ga4";
 import { isCapabilityTokenPath } from "./analytics-privacy";
 import { clientEnv } from "./env";
 import { readMarketingSource } from "./marketing-attribution";
@@ -68,6 +69,23 @@ export function trackEvent(
 		ReactGA.event(name, { ...(src ? { src } : {}), ...params });
 	} catch {
 		// Swallow — see doc comment.
+	}
+}
+
+/**
+ * The visitor's GA4 client id from the `_ga` cookie, or undefined (GA never
+ * booted here — ad-blocker, unset env). Captured at signup and stored as
+ * `retailers.gaClientId` so the SERVER-side key events (`first_order`,
+ * `subscribe_paid` — see convex/ga4Events.ts) stitch into the same GA4 user
+ * journey as the client funnel. Parsing is shared with the server catalog
+ * (convex/lib/ga4.ts) so validation can never drift. Never throws.
+ */
+export function readGaClientId(): string | undefined {
+	try {
+		if (typeof document === "undefined") return undefined;
+		return extractGaClientId(document.cookie);
+	} catch {
+		return undefined;
 	}
 }
 

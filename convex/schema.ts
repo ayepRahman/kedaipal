@@ -58,6 +58,15 @@ export default defineSchema({
 		// same posture: per-row read only, no index. Surfaced in the admin
 		// sellers table; naming convention lives in src/lib/marketing-attribution.
 		signupSource: v.optional(v.string()),
+		// GA4 client id captured from the seller's `_ga` cookie at signup
+		// (z8r3fdd1v1), wire format `<random>.<timestamp>` — validated server-side
+		// (isValidGaClientId; garbage is dropped, never stored). Lets the
+		// server-side key events (`first_order`, `subscribe_paid`) stitch into the
+		// same GA4 user journey as the client-side funnel events. Absent =
+		// GA never booted in their browser (ad-blocker/unset env) — the emitter
+		// falls back to a synthetic id (events count but don't stitch). Same
+		// posture as signupSource: per-row read only, no index.
+		gaClientId: v.optional(v.string()),
 		// Store country (SG-lite, 86eynw27f). The one switch every country-shaped
 		// rule reads: checkout phone plate/validator arm, address variant, Places
 		// autocomplete region, and the currency a new store defaults to. Undefined

@@ -158,6 +158,30 @@ export const markPaid = mutation({
 			{ invoiceId },
 		);
 
+		// 6) Server-side GA4 `subscribe_paid` key event (z8r3fdd1v1) — every
+		//    payment (renewals too, `first_time` distinguishes), carrying the
+		//    stored acquisition tag so subscription revenue segments by channel.
+		//    Fire-and-forget: analytics never blocks or rolls back a payment.
+		const retailer = await ctx.db.get(invoice.retailerId);
+		await ctx.scheduler.runAfter(0, internal.ga4Events.sendKeyEvent, {
+			event: "subscribe_paid",
+			retailerId: invoice.retailerId,
+			...(retailer?.gaClientId !== undefined
+				? { gaClientId: retailer.gaClientId }
+				: {}),
+			...(retailer?.signupSource !== undefined
+				? { src: retailer.signupSource }
+				: {}),
+			params: {
+				plan: billedPlan,
+				cycle: billedCycle,
+				first_time: firstTime,
+				// Invoice money is minor units (sen/cents); GA4 `value` is major.
+				value: invoice.total / 100,
+				currency: invoice.currency,
+			},
+		});
+
 		return { rank };
 	},
 });

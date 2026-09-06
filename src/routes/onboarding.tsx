@@ -28,7 +28,7 @@ import { MyPhoneInput } from "../components/ui/my-phone-input";
 import { useOnboardingStart } from "../hooks/useOnboardingStart";
 import { useSlugAvailability } from "../hooks/useSlugAvailability";
 import { convexErrorMessage } from "../lib/format";
-import { trackEvent } from "../lib/ga-events";
+import { readGaClientId, trackEvent } from "../lib/ga-events";
 import { readMarketingSource } from "../lib/marketing-attribution";
 import {
 	decodeOnboardingPrefill,
@@ -149,6 +149,9 @@ function OnboardingForm() {
 			// The tag the session arrived with (marketing routes / powered-by
 			// badge) — the server re-sanitizes, this is only a hint.
 			const signupSource = readMarketingSource();
+			// GA client id, so server-side key events (first_order/subscribe_paid)
+			// stitch to this browser's funnel — validated server-side, hint only.
+			const gaClientId = readGaClientId();
 			await createRetailer({
 				storeName: storeName.trim(),
 				slug,
@@ -158,6 +161,7 @@ function OnboardingForm() {
 				// plan begins once Arif marks their founding invoice paid.
 				...(prefill?.founding ? { intent: "founding" as const } : {}),
 				...(signupSource !== undefined ? { signupSource } : {}),
+				...(gaClientId !== undefined ? { gaClientId } : {}),
 			});
 			// The funnel's terminal key event — after the mutation succeeds, so a
 			// slug collision or validation error can't inflate conversions.
