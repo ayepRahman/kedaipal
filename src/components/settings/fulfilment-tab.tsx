@@ -1005,10 +1005,14 @@ function DeliveryChargeSection({
 			// order; the sanitizer normalizes stored rows to "block"). Mirrors the
 			// server gates so the failure is a helpful message, not a thrown save.
 			if (!effectiveAddress) {
+				// Delyva-only stores never send a rider anywhere — their copy must
+				// not talk about one (PR #253 review FYI).
 				setError(
-					collectionMode
-						? "Set your business address above first — it's where riders drop off what they collect."
-						: "Set your business address above first — it's the pickup point riders are sent to.",
+					!lalamoveArmed && delyvaArmed
+						? "Set your business address above first — it anchors your store's delivery setup."
+						: collectionMode
+							? "Set your business address above first — it's where riders drop off what they collect."
+							: "Set your business address above first — it's the pickup point riders are sent to.",
 				);
 				return;
 			}

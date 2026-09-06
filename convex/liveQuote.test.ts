@@ -7,6 +7,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { loadCheckoutDeliveryQuote } from "./orders";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -241,3 +242,139 @@ describe("cart weight is summed from the variants, never trusted from the client
 		expect(c?.cartWeightKg).toBeNull();
 	});
 });
+
+describe("the legacy action refuses provider-aware stores (PR #253 review)", () => {
+	// A Lalamove-only row minted for a "live" store is an adversarial buyer's
+	// way around charge-the-higher — and on a cold store, a rider price for a
+	// frozen cart. The refusal happens before any network call.
+	test("lalamove.quoteForCheckout answers unavailable for a live-mode store", async () => {
+		const t = setup();
+		const retailerId = await seedStore(t, { mode: "live", lalamove: true });
+		const result = await t.action(api.lalamove.quoteForCheckout, {
+			retailerId,
+			latitude: 3.15,
+			longitude: 101.7,
+			address: "12 Jalan Ampang",
+		});
+		expect(result.status).toBe("unavailable");
+	});
+
+	test("…and still serves a legacy lalamove-mode store", async () => {
+		// The pre-migration store keeps working — a deploy alone changes
+		// nobody's pricing path. (It proceeds past the mode gate; the fetch
+		// itself then fails in this offline test, which is fine — the point is
+		// it was not refused by the gate.)
+		const t = setup();
+		const retailerId = await seedStore(t, { mode: "flat", lalamove: true });
+		await t.run(async (ctx) => {
+			await ctx.db.patch(retailerId, {
+				deliveryConfig: { mode: "lalamove", onUnquotable: "block" },
+			});
+		});
+		const result = await t.action(api.lalamove.quoteForCheckout, {
+			retailerId,
+			latitude: 3.15,
+			longitude: 101.7,
+			address: "12 Jalan Ampang",
+		});
+		// Offline: the provider call fails as a transient, NOT as the
+		// deliberate providerAware refusal path having fired first — both spell
+		// "unavailable", so distinguish by the context flag.
+		const context = await t.query(internal.lalamove.getQuoteContext, {
+			retailerId,
+		});
+		expect(context?.providerAware).toBe(false);
+		expect(result.status).toBe("unavailable");
+	});
+})
+
+describe("a quote row is bound to the cart it priced (PR #253 review)", () => {
+	// Delyva bids on summed weight: a row minted for a light cart must not be
+	// redeemable against a heavier one. The comparator itself is pinned in
+	// lib/liveQuote.test.ts — this exercises the WIRED guard in
+	// loadCheckoutDeliveryQuote, alongside its existing coord/age checks.
+	async function seedRowWithCart(t: ReturnType<typeof setup>) {
+		const retailerId = await seedStore(t, { mode: "live", delyva: true });
+		return t.run(async (ctx) => {
+			const now = Date.now();
+			const productId = await ctx.db.insert("products", {
+				retailerId,
+				name: "Beku",
+				currency: "MYR",
+				imageStorageIds: [],
+				active: true,
+				options: [],
+				channel: "whatsapp",
+				sortOrder: 0,
+				createdAt: now,
+				updatedAt: now,
+			});
+			const variantId = await ctx.db.insert("productVariants", {
+				productId,
+				retailerId,
+				optionValues: [],
+				price: 1000,
+				onHand: 10,
+				reserved: 0,
+				parcelWeightG: 500,
+				imageStorageIds: [],
+				active: true,
+				sortOrder: 0,
+				createdAt: now,
+				updatedAt: now,
+			});
+			const quoteId = await ctx.db.insert("deliveryQuotes", {
+				retailerId,
+				provider: "delyva",
+				fee: 475,
+				currency: "MYR",
+				lines: [{ variantId, quantity: 1 }],
+				latitude: 3.15,
+				longitude: 101.7,
+				quotedAt: now,
+			});
+			return { retailerId, variantId, quoteId };
+		});
+	}
+
+	test("redeems against the same cart; refuses a heavier one", async () => {
+		const t = setup();
+		const { retailerId, variantId, quoteId } = await seedRowWithCart(t);
+		const address = { latitude: 3.15, longitude: 101.7 };
+
+		// Different quantity — the guard refuses BEFORE consuming the row.
+		const mismatch = await t.run(async (ctx) =>
+			loadCheckoutDeliveryQuote(ctx as never, retailerId, quoteId, address, [
+				{ variantId, quantity: 3 },
+			]),
+		);
+		// t.run serializes the mutation-ctx return, so undefined → null.
+		expect(mismatch ?? undefined).toBeUndefined();
+
+		// Identical cart — redeems (and consumes the row).
+		const match = await t.run(async (ctx) =>
+			loadCheckoutDeliveryQuote(ctx as never, retailerId, quoteId, address, [
+				{ variantId, quantity: 1 },
+			]),
+		);
+		expect(match?.fee).toBe(475);
+	});
+
+	test("a legacy row without lines skips the cart check — rider prices ignore the cart", async () => {
+		const t = setup();
+		const { retailerId, variantId, quoteId } = await seedRowWithCart(t);
+		await t.run(async (ctx) => {
+			await ctx.db.patch(quoteId, { lines: undefined });
+		});
+		const redeemed = await t.run(async (ctx) =>
+			loadCheckoutDeliveryQuote(
+				ctx as never,
+				retailerId,
+				quoteId,
+				{ latitude: 3.15, longitude: 101.7 },
+				[{ variantId, quantity: 99 }],
+			),
+		);
+		expect(redeemed?.fee).toBe(475);
+	});
+})

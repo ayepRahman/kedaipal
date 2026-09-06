@@ -104,6 +104,13 @@ export type LalamoveQuoteContext = {
 	/** The store's country — decides the Lalamove market the quote is priced
 	 * in (z8r3fdch3r), so it travels with the context into the fetch. */
 	country: string | undefined;
+	/** Store is on the provider-aware "live" mode (PR #253 review): the
+	 * legacy public action must then REFUSE to mint a row — a Lalamove-only
+	 * price on a live store bypasses charge-the-higher, and on a cold store
+	 * it would price a frozen cart as a rider trip. Only liveQuote's
+	 * orchestrator may quote such a store (it reads this context internally,
+	 * where the flag is simply ignored). */
+	providerAware: boolean;
 	deliveryDirection: "standard" | "collection";
 };
 
@@ -136,6 +143,7 @@ export const getQuoteContext = internalQuery({
 				apiSecret: retailer.deliveryBooking?.apiSecret,
 			},
 			country: retailer.country,
+			providerAware: retailer.deliveryConfig?.mode === "live",
 			deliveryDirection:
 				retailer.deliveryBooking?.deliveryDirection ?? "standard",
 		};
@@ -160,6 +168,14 @@ export const saveCheckoutQuote = internalMutation({
 					provider: v.union(v.literal("lalamove"), v.literal("delyva")),
 					fee: v.number(),
 					currency: v.string(),
+				}),
+			),
+		),
+		lines: v.optional(
+			v.array(
+				v.object({
+					variantId: v.id("productVariants"),
+					quantity: v.number(),
 				}),
 			),
 		),
@@ -232,6 +248,14 @@ export const quoteForCheckout = action({
 			retailerId: args.retailerId,
 		});
 		if (!context) return { status: "store_unavailable" };
+		// A provider-aware store is priced ONLY by liveQuote.quoteForCheckout.
+		// Serving it here would mint a redeemable Lalamove-only row — an
+		// adversarial buyer's way around charge-the-higher, and a rider price
+		// for a frozen cart on a cold store. "unavailable" is retryable copy:
+		// the one honest caller is a stale pre-deploy bundle, and its buyer
+		// recovers on reload (the reactive query re-routes fresh bundles the
+		// moment the migration flips the mode, so this window is minutes).
+		if (context.providerAware) return { status: "unavailable" };
 		const quote = await fetchLalamoveQuote({
 			context,
 			retailerId: args.retailerId,

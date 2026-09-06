@@ -143,3 +143,14 @@ describe("api surface", () => {
 		);
 	});
 });
+
+describe("every surface must supply the cart (PR #253 review, HIGH)", () => {
+	it("items is a required input — the compiler catches a surface that forgets", () => {
+		// Two surfaces (claim checkout, address edit) omitted `items`, which
+		// starved Delyva of a weight and silently re-opened the one-provider
+		// leak there. The prop is required now; this test documents why, and
+		// the args() fixture above fails to compile if it regresses to
+		// optional-and-omitted at any call site in this file.
+		expect(args().items.length).toBeGreaterThan(0);
+	});
+})

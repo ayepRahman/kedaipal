@@ -448,6 +448,13 @@ export function ClaimCheckoutPage({
 				postcode: a.postcode?.trim() || undefined,
 			};
 		},
+		// The claim's lines — without them Delyva has no weight to bid with,
+		// and a claim link would price differently from the storefront for the
+		// same cart (PR #253 review, HIGH).
+		items: open.lines.map((line) => ({
+			variantId: line.variantId,
+			quantity: line.quantity,
+		})),
 		fulfilmentDate: watchedDate ? mytMidnightFromYmd(watchedDate) : undefined,
 		fulfilmentTimeMinutes: watchedTimeMinutes,
 	});

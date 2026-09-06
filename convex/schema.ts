@@ -1905,6 +1905,20 @@ export default defineSchema({
 		// Delyva only: which service in its returned list set this price.
 		serviceCode: v.optional(v.string()),
 		serviceName: v.optional(v.string()),
+		// The cart this quote priced (PR #253 review): Delyva's bid depends on
+		// the summed variant weight, so a quote minted for one cart must not be
+		// redeemable against another — an emptier cart at quote time buys a
+		// cheaper courier band. Compared against the ORDER's real lines at
+		// redemption, the way coordinates already are. Absent on legacy
+		// Lalamove-mode rows, whose price never depended on the cart.
+		lines: v.optional(
+			v.array(
+				v.object({
+					variantId: v.id("productVariants"),
+					quantity: v.number(),
+				}),
+			),
+		),
 		// Every quote that competed, winner included — the audit trail for
 		// "why was I charged RM5.70" months later. Copied onto the order's
 		// deliverySnapshot at create, since this row is consumed there.

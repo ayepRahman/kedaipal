@@ -803,6 +803,7 @@ export const commit = mutation({
 				claim.retailerId,
 				args.deliveryQuoteId,
 				sanitizedAddress,
+				claim.lines,
 			);
 			const resolved = resolveDeliveryForOrder(
 				retailer,

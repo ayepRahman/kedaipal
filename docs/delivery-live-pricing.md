@@ -124,6 +124,33 @@ leak already did — a store with one armed provider has one bidder and prices
 identically either way. Idempotent. The old literal stays valid (and shows as
 selected) so an unmigrated row is never "nothing picked".
 
+## Hardening (PR #253 review)
+
+**Every buyer surface supplies the cart.** The hook's `items` input is
+REQUIRED — two surfaces (claim checkout, the tracking page's address-edit
+dialog) omitted it, which starved Delyva of a weight and silently re-opened
+the one-provider leak exactly where "a claim link pricing differently from
+the storefront would be its own bug". The type system now catches the next
+surface that forgets.
+
+**The legacy single-provider action refuses provider-aware stores.**
+`lalamove.quoteForCheckout` answers `unavailable` for a `mode: "live"` store:
+serving it would mint a redeemable Lalamove-only row — an API-level way
+around charge-the-higher, and on a cold store a rider price for a frozen
+cart. The one honest caller is a stale pre-deploy bundle, whose buyer
+recovers on reload (fresh bundles re-route reactively the moment the
+migration flips the mode). Once the legacy `"lalamove"` mode literal is
+narrowed out of the schema, this action retires with it — that narrow is the
+same already-ticketed step, not a second one to forget.
+
+**A quote row is bound to the cart it priced.** Delyva bids on summed
+variant weight, so quoting a light cart and checking out a heavy one would
+buy a cheaper courier band. Provider-aware rows stamp their lines
+(`deliveryQuotes.lines`) and `loadCheckoutDeliveryQuote` compares them
+against the order's real lines as a multiset — same posture as its existing
+coordinate check. Legacy rows carry no lines (rider prices ignore the cart)
+and skip it.
+
 ## Checkout
 
 **The store's mode decides which action prices it**, handed to the client on

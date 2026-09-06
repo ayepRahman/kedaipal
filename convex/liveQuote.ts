@@ -259,6 +259,8 @@ export const quoteForCheckout = action({
 				serviceCode: outcome.serviceCode,
 				serviceName: outcome.serviceName,
 				considered: outcome.considered,
+				// The cart this price belongs to — redemption refuses any other.
+				lines: args.items,
 				latitude: args.latitude,
 				longitude: args.longitude,
 			},

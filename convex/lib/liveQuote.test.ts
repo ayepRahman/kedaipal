@@ -4,6 +4,7 @@
 import { describe, expect, test } from "vitest";
 import {
 	cartItemType,
+	sameQuotedLines,
 	chooseLiveQuote,
 	isColdItemType,
 	type ProviderQuote,
@@ -250,3 +251,64 @@ describe("cart item type (store default until per-item flags land)", () => {
 		expect(isColdItemType("PARCEL")).toBe(false);
 	});
 });
+
+describe("sameQuotedLines — a quote is bound to the cart it priced", () => {
+	// Delyva bids on summed weight, so redeeming a light cart's quote against
+	// a heavy cart buys a cheaper courier band (PR #253 review, MEDIUM).
+	test("same lines in any order, even split, are the same cart", () => {
+		expect(
+			sameQuotedLines(
+				[
+					{ variantId: "a", quantity: 2 },
+					{ variantId: "b", quantity: 1 },
+				],
+				[
+					{ variantId: "b", quantity: 1 },
+					{ variantId: "a", quantity: 1 },
+					{ variantId: "a", quantity: 1 },
+				],
+			),
+		).toBe(true);
+	});
+
+	test("a changed quantity is a different cart", () => {
+		expect(
+			sameQuotedLines(
+				[{ variantId: "a", quantity: 1 }],
+				[{ variantId: "a", quantity: 3 }],
+			),
+		).toBe(false);
+	});
+
+	test("an added or swapped variant is a different cart", () => {
+		expect(
+			sameQuotedLines(
+				[{ variantId: "a", quantity: 1 }],
+				[
+					{ variantId: "a", quantity: 1 },
+					{ variantId: "b", quantity: 1 },
+				],
+			),
+		).toBe(false);
+		expect(
+			sameQuotedLines(
+				[{ variantId: "a", quantity: 1 }],
+				[{ variantId: "b", quantity: 1 }],
+			),
+		).toBe(false);
+	});
+
+	test("custom/legacy lines without a variantId are ignored on both sides", () => {
+		// They were never summable into the quote's weight, so they can't
+		// invalidate it either.
+		expect(
+			sameQuotedLines(
+				[{ variantId: "a", quantity: 1 }],
+				[
+					{ variantId: "a", quantity: 1 },
+					{ quantity: 5 },
+				],
+			),
+		).toBe(true);
+	});
+})

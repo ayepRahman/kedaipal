@@ -185,3 +185,35 @@ export function chooseLiveQuote(args: {
 		return { kind: "unquotable", reason: "out_of_range" };
 	return { kind: "unquotable", reason: "unavailable" };
 }
+
+/**
+ * Do two line lists describe the same priced cart? (PR #253 review.)
+ *
+ * Delyva's bid depends on the summed variant weight, so a quote row minted
+ * for one cart must not be redeemable against another — quoting an emptier
+ * cart and checking out a heavier one buys a cheaper courier band. Compared
+ * as a MULTISET of (variantId → summed quantity): order within the cart is
+ * presentation, split lines of the same variant weigh the same, and lines
+ * without a variantId (custom / legacy) are ignored on both sides because
+ * they were never summable into the quote's weight to begin with.
+ */
+export function sameQuotedLines(
+	a: ReadonlyArray<{ variantId?: string; quantity: number }>,
+	b: ReadonlyArray<{ variantId?: string; quantity: number }>,
+): boolean {
+	const tally = (
+		lines: ReadonlyArray<{ variantId?: string; quantity: number }>,
+	) => {
+		const m = new Map<string, number>();
+		for (const line of lines) {
+			if (!line.variantId) continue;
+			m.set(line.variantId, (m.get(line.variantId) ?? 0) + line.quantity);
+		}
+		return m;
+	};
+	const ta = tally(a);
+	const tb = tally(b);
+	if (ta.size !== tb.size) return false;
+	for (const [k, v] of ta) if (tb.get(k) !== v) return false;
+	return true;
+}

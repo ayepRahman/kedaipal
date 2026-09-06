@@ -115,6 +115,7 @@ import {
 	summarizeCartWeight,
 	storablePendingReason,
 } from "./lib/delivery";
+import { sameQuotedLines } from "./lib/liveQuote";
 import {
 	CHECKOUT_QUOTE_MAX_AGE_MS,
 	isActiveJobStatus,
@@ -335,11 +336,18 @@ export async function loadCheckoutDeliveryQuote(
 	retailerId: Id<"retailers">,
 	quoteId: Id<"deliveryQuotes"> | undefined,
 	address: { latitude?: number; longitude?: number } | undefined,
+	/** The ORDER's line items, for cart-bound rows (PR #253 review): a
+	 * provider-aware quote priced a specific cart's weight, so redeeming it
+	 * against different lines would let a light quote pay for a heavy cart.
+	 * Legacy rows carry no lines (rider prices ignore the cart) and skip it. */
+	orderLines?: ReadonlyArray<{ variantId?: string; quantity: number }>,
 ): Promise<LiveProviderQuote | undefined> {
 	if (!quoteId) return undefined;
 	const row = await ctx.db.get(quoteId);
 	if (!row || row.retailerId !== retailerId) return undefined;
 	if (Date.now() - row.quotedAt > CHECKOUT_QUOTE_MAX_AGE_MS) return undefined;
+	if (row.lines !== undefined && !sameQuotedLines(row.lines, orderLines ?? []))
+		return undefined;
 	const COORD_TOLERANCE = 1e-4; // ≈11 m
 	if (
 		address?.latitude === undefined ||
@@ -1151,6 +1159,7 @@ export const create = mutation({
 				retailer._id,
 				args.deliveryQuoteId,
 				sanitizedAddress,
+				snapshotItems,
 			);
 			const resolved = resolveDeliveryForOrder(
 				retailer,
@@ -3801,6 +3810,7 @@ export const updateDeliveryAddress = mutation({
 			order.retailerId,
 			deliveryQuoteId,
 			sanitized,
+			order.items,
 		);
 		// Weight-mode re-price (86eyeea1n) weighs the ORDER's frozen lines against
 		// live variant weights — a state change can move the order to another

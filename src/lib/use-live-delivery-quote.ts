@@ -69,8 +69,13 @@ export function useLiveDeliveryQuote({
 	};
 	/** Cart lines — the server re-reads each variant's weight itself (a
 	 * client-supplied weight would buy a cheaper courier band); this only says
-	 * WHICH lines. */
-	items?: Array<{ variantId: Id<"productVariants">; quantity: number }>;
+	 * WHICH lines. REQUIRED (PR #253 review): two surfaces omitted it and
+	 * starved Delyva of a weight, silently re-opening the one-provider leak on
+	 * claim links and address edits — the type now catches the next surface
+	 * that forgets. Lines without a variantId (legacy pre-variant orders,
+	 * custom lines) are simply not summable and belong filtered out by the
+	 * caller; the server then refuses the Delyva bid rather than under-weighs. */
+	items: Array<{ variantId: Id<"productVariants">; quantity: number }>;
 	/** Epoch-ms MYT midnight of the chosen day — pre-orders are priced for
 	 * THEIR day, so date changes re-quote like address changes. */
 	fulfilmentDate?: number;

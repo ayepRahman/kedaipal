@@ -41,6 +41,9 @@ interface AddressEditDialogProps {
 	/** Order item subtotal (sen) — feeds the reactive delivery quote (the flat
 	 * mode's free-above threshold needs it; live-mode detection ignores it). */
 	subtotal: number;
+	/** The order's line items — a live re-quote must weigh the same cart the
+	 * checkout did (Delyva prices on weight; PR #253 review, HIGH). */
+	orderItems: Doc<"orders">["items"];
 	/** The order's frozen currency — prices the live re-quote line ("S$ 12.00
 	 * to this address"), same source every other money line on the page uses. */
 	currency: string;
@@ -81,6 +84,7 @@ export function AddressEditDialog({
 	retailerId,
 	country,
 	subtotal,
+	orderItems,
 	currency,
 	fulfilmentDate,
 	fulfilmentTimeMinutes,
@@ -183,6 +187,19 @@ export function AddressEditDialog({
 				postcode: v.postcode?.trim() || undefined,
 			};
 		},
+		// The order's lines — a re-priced address must weigh the same cart the
+		// checkout did, or Delyva can't bid here (PR #253 review, HIGH).
+		// Legacy pre-variant lines carry no variantId and aren't summable;
+		// dropping them makes the server refuse the bid rather than under-weigh.
+		items: orderItems
+			.filter(
+				(item): item is typeof item & { variantId: Id<"productVariants"> } =>
+					item.variantId !== undefined,
+			)
+			.map((item) => ({
+				variantId: item.variantId,
+				quantity: item.quantity,
+			})),
 		fulfilmentDate,
 		fulfilmentTimeMinutes,
 	});
