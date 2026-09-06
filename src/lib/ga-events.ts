@@ -1,0 +1,68 @@
+import ReactGA from "react-ga4";
+import { isCapabilityTokenPath } from "./analytics-privacy";
+import { clientEnv } from "./env";
+import { readMarketingSource } from "./marketing-attribution";
+
+/**
+ * GA4 custom events for the acquisition funnel (z8r3fdd1v0):
+ * `land_marketing` → `view_pricing`/`calc_used` → `cta_signup_click` →
+ * `onboarding_start` → `store_created`. Event catalog + which are marked as
+ * key events in the GA4 UI: docs/analytics.md.
+ *
+ * One shared "GA is booted" flag lives here — `useGoogleAnalytics` (pageviews)
+ * and `trackEvent` (custom events) both go through `ensureGaInitialized`, so
+ * whichever runs first boots the library exactly once. That matters because
+ * child-route effects run BEFORE the root document's effect: a route firing
+ * `land_marketing` on mount must not race the pageview hook's init.
+ */
+
+let gaInitialized = false;
+
+/**
+ * Boot GA4 once, iff allowed here: returns false (and never loads the
+ * library) when the measurement ID is unset or `pathname` is a
+ * capability-token route — `/track/*`/`/claim/*` URLs are the buyer's secret
+ * and gtag auto-collects the full page_location once loaded (see
+ * `useGoogleAnalytics` for the long-form rationale).
+ */
+export function ensureGaInitialized(pathname: string): boolean {
+	const id = clientEnv.VITE_GA_MEASUREMENT_ID;
+	if (!id) return false;
+	if (isCapabilityTokenPath(pathname)) return false;
+
+	if (!gaInitialized) {
+		ReactGA.initialize(id);
+		gaInitialized = true;
+	}
+	return true;
+}
+
+/**
+ * Fire a GA4 custom event. The captured marketing `src` (if any) is attached
+ * to EVERY event so the funnel stays segmentable by source end to end; an
+ * explicit `src` in `params` out-ranks the stored one. No-ops without a
+ * measurement ID and on capability-token paths; never throws — analytics
+ * must never break the page.
+ */
+export function trackEvent(
+	name: string,
+	params?: Record<string, string | number | boolean>,
+): void {
+	try {
+		if (typeof window === "undefined") return;
+		if (!ensureGaInitialized(window.location.pathname)) return;
+		const src = readMarketingSource();
+		ReactGA.event(name, { ...(src ? { src } : {}), ...params });
+	} catch {
+		// Swallow — see doc comment.
+	}
+}
+
+/**
+ * A signup CTA was clicked. `placement` names the surface ("nav", "hero",
+ * "final-cta", "pricing-teaser", "pricing-card", …) so the funnel can say
+ * WHICH button converts, not just that one did.
+ */
+export function trackSignupCta(placement: string): void {
+	trackEvent("cta_signup_click", { placement });
+}

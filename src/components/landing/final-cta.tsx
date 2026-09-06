@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { useSupportWaNumber } from "../../hooks/useSupportWaNumber";
 import { buildWaContactLink } from "../../lib/contact";
 import { m } from "../../paraglide/messages";
+import { trackSignupCta } from "../../lib/ga-events";
 import { WhatsAppIcon } from "../dashboard/brand-icons";
 import { FadeIn } from "./fade-in";
 import { ctaPillClass, GuaranteeLine } from "./landing-ui";
@@ -56,6 +57,7 @@ export function FinalCta() {
 										to="/sign-up/$"
 										params={{ _splat: "" }}
 										className={ctaPillClass("accent")}
+										onClick={() => trackSignupCta("final-cta")}
 									>
 										{m.final_cta()}
 										<ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />

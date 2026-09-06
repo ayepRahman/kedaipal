@@ -186,6 +186,7 @@ import {
 	sanitizeAwbConfig,
 	type StoredAwbConfig,
 } from "./lib/awbConfig";
+import { sanitizeAttributionSource } from "./lib/attribution";
 import { DEFAULT_LOCALE, type Locale } from "./lib/locale";
 import { MAX_NOTICE_DAYS } from "./lib/fulfilmentDate";
 import { sanitizeMinOrderValue } from "./lib/minOrderRules";
@@ -1235,6 +1236,11 @@ export const createRetailer = mutation({
 		// plan still only starts at admin mark-paid. The real rank gate is mark-paid +
 		// the 10-slot cap, so this is not a privileged arg in v1. See docs/manual-subscription.md.
 		intent: v.optional(v.union(v.literal("public"), v.literal("founding"))),
+		// Marketing tag the seller's session arrived with (z8r3fdd1v0) — carried
+		// from the marketing routes via sessionStorage (see
+		// src/lib/marketing-attribution.ts). Re-sanitized here: the client value
+		// is a hint, never trusted verbatim.
+		signupSource: v.optional(v.string()),
 	},
 	handler: async (ctx, args): Promise<{ slug: string }> => {
 		const identity = await ctx.auth.getUserIdentity();
@@ -1293,6 +1299,10 @@ export const createRetailer = mutation({
 			await ctx.db.delete(historyRow._id);
 		}
 
+		// Absent/blank → undefined (untagged), present-but-garbage → "other" —
+		// identical semantics to orders.attributionSource.
+		const signupSource = sanitizeAttributionSource(args.signupSource);
+
 		const now = Date.now();
 		// Consent is implied: the onboarding UI gates submission on a required,
 		// not-pre-checked "I agree" checkbox. Stamp the server-side current
@@ -1308,6 +1318,7 @@ export const createRetailer = mutation({
 			// theirs at create and orders refuse a currency mismatch.
 			currency: COUNTRY_CURRENCY[country],
 			...(args.country !== undefined ? { country: args.country } : {}),
+			...(signupSource !== undefined ? { signupSource } : {}),
 			channel: "whatsapp",
 			// Default self-collect ON so new retailers discover the pickup feature
 			// in the onboarding checklist. They can toggle it off from Settings →

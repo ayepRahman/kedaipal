@@ -46,6 +46,46 @@ GA's `gaInitialized`, so a remount can't double-boot it (the test covers
 unmount → remount specifically; a plain re-render passes with or without the
 guard, so it proves nothing).
 
+## GA4 funnel events + seller-acquisition `src` (z8r3fdd1v0)
+
+GA4 fires more than pageviews: the acquisition funnel emits custom events via
+[`src/lib/ga-events.ts`](../src/lib/ga-events.ts) (`trackEvent` — no-ops
+without a measurement ID and on capability-token paths, never throws). The
+init flag lives there too, shared with `useGoogleAnalytics`, so whichever
+fires first boots the library exactly once (child-route effects run before the
+root's pageview effect).
+
+| Event | Fires | Where |
+| --- | --- | --- |
+| `land_marketing` | once per page load, first marketing-route mount | `/`, `/pricing`, `/cost` via [`useMarketingLanding`](../src/hooks/useMarketingLanding.ts) |
+| `view_pricing` | every `/pricing` mount | `pricing.tsx` |
+| `calc_used` | first calculator input change per visit | `cost.tsx` (`syncToUrl` choke point) |
+| `cta_signup_click` | every signup CTA click, `placement` param (`nav`, `nav-mobile`, `hero`, `hero-secondary`, `final-cta`, `pricing-teaser-<tier>`, `pricing-card-<tier>`, `pricing-bottom`) | landing components + `pricing.tsx` via `trackSignupCta` |
+| `onboarding_start` | signed-in seller reaches the store-creation form | `onboarding.tsx` |
+| `store_created` | `createRetailer` succeeded (never on validation failure) | `onboarding.tsx` |
+
+**Every event auto-carries the `src` param** when the session arrived tagged:
+[`src/lib/marketing-attribution.ts`](../src/lib/marketing-attribution.ts)
+captures `?src=`/`utm_source` on the marketing routes (and `/onboarding`) into
+sessionStorage — the seller-side sibling of the buyer-side storefront capture
+(`docs/source-attribution.md`), same sanitizer, same last-touch rule, its own
+storage key. sessionStorage (not the URL) because the funnel crosses the Clerk
+sign-up redirect, which mangles multi-param queries (see `onboarding-link.ts`).
+At `createRetailer` the tag is re-sanitized server-side and stamped onto
+**`retailers.signupSource`** (absent = untagged/direct — the
+`orders.attributionSource` posture), surfaced as a "via `<tag>`" pill in the
+admin sellers directory.
+
+**Naming convention** for tags Kedaipal itself emits: `powered-by` (the
+storefront badge — renamed from `storefront_badge`), `spotlight-<member>`,
+`referral-<member>`, `tiktok-live`, `directory`, `qr-poster`. Free-form tags
+sanitize and store verbatim.
+
+**Operator step (GA4 UI, once per property):** mark `onboarding_start` and
+`store_created` as **key events** (Admin → Events → toggle "Mark as key
+event") so funnel/conversion reports treat them as conversions. Events appear
+in DebugView immediately; standard reports lag ~24h.
+
 ## Configuration
 
 - **Local:** copy the `VITE_CLARITY_PROJECT_ID` line from `.env.local.example`

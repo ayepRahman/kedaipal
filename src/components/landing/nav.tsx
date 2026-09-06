@@ -9,6 +9,7 @@ import { cn } from "../../lib/utils";
 import { m } from "../../paraglide/messages";
 import { getLocale, locales, setLocale } from "../../paraglide/runtime";
 import { WhatsAppIcon } from "../dashboard/brand-icons";
+import { trackSignupCta } from "../../lib/ga-events";
 import { AppImage } from "../ui/app-image";
 import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -136,7 +137,11 @@ function NavAuthCta() {
 				size="lg"
 				className="tap-target hidden rounded-full px-5 md:inline-flex"
 			>
-				<Link to="/sign-up/$" params={{ _splat: "" }}>
+				<Link
+					to="/sign-up/$"
+					params={{ _splat: "" }}
+					onClick={() => trackSignupCta("nav")}
+				>
 					{m.nav_start_free()}
 				</Link>
 			</Button>
@@ -162,7 +167,14 @@ function MobileMenuAuthCta({ onClose }: { onClose: () => void }) {
 	return (
 		<>
 			<Button asChild size="lg" className="h-12 w-full rounded-full">
-				<Link to="/sign-up/$" params={{ _splat: "" }} onClick={onClose}>
+				<Link
+					to="/sign-up/$"
+					params={{ _splat: "" }}
+					onClick={() => {
+						trackSignupCta("nav-mobile");
+						onClose();
+					}}
+				>
 					{m.nav_start_free()}
 				</Link>
 			</Button>

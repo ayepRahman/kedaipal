@@ -5,6 +5,7 @@ import { ArrowRight, BellOff, Check } from "lucide-react";
 import { useSupportWaNumber } from "../../hooks/useSupportWaNumber";
 import { buildWaContactLink } from "../../lib/contact";
 import { m } from "../../paraglide/messages";
+import { trackSignupCta } from "../../lib/ga-events";
 import { WhatsAppIcon } from "../dashboard/brand-icons";
 import { HeroDevice } from "./hero-device";
 import { ctaPillClass, GuaranteeLine, Marquee, Sticker } from "./landing-ui";
@@ -259,6 +260,7 @@ export function Hero() {
 										to="/sign-up/$"
 										params={{ _splat: "" }}
 										className={`${ctaPillClass("accent")} w-full sm:w-fit`}
+										onClick={() => trackSignupCta("hero")}
 									>
 										{m.final_cta()}
 										<ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
@@ -279,6 +281,7 @@ export function Hero() {
 										to="/sign-up/$"
 										params={{ _splat: "" }}
 										className={secondaryLinkClass}
+										onClick={() => trackSignupCta("hero-secondary")}
 									>
 										{m.hero_cta_primary()}
 									</Link>

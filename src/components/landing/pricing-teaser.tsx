@@ -14,6 +14,7 @@ import {
 import { useLandingRegion } from "../../hooks/useLandingRegion";
 import { cn } from "../../lib/utils";
 import { m } from "../../paraglide/messages";
+import { trackSignupCta } from "../../lib/ga-events";
 import { Button } from "../ui/button";
 import { FadeIn } from "./fade-in";
 import {
@@ -262,7 +263,13 @@ export function PricingTeaser() {
 													<ArrowRight />
 												</Link>
 											) : (
-												<Link to="/sign-up/$" params={{ _splat: "" }}>
+												<Link
+													to="/sign-up/$"
+													params={{ _splat: "" }}
+													onClick={() =>
+														trackSignupCta(`pricing-teaser-${tier.id}`)
+													}
+												>
 													{m.pricing_cta()}
 													<ArrowRight />
 												</Link>
