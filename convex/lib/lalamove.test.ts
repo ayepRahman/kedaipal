@@ -149,6 +149,7 @@ describe("lalamoveAmountToSen", () => {
 describe("payload builders", () => {
 	test("quotation body wraps in data with string coordinates, rounded to 6dp", () => {
 		const body = buildQuotationBody({
+			market: "MY",
 			serviceType: "MOTORCYCLE",
 			stops: [
 				{
@@ -756,5 +757,35 @@ describe("the Market header follows the store, not the module (z8r3fdch3r)", () 
 		).toBe(true);
 		expect(hasLalamoveCredentials({ apiKey: "pk_test_a" })).toBe(false);
 		expect(hasLalamoveCredentials(undefined)).toBe(false);
+	});
+})
+
+describe("the quotation locale follows the market (PR #255 review)", () => {
+	// `language` is market-scoped in Lalamove's v3 body — SG rejects en_MY —
+	// and it was the one market-scoped field the SG sweep missed. Had it
+	// shipped, every SG quote could have 422'd as a generic "unavailable",
+	// exactly the unnamed-failure class this ticket promises can't happen.
+	test("an SG-market body asks in en_SG", () => {
+		const body = buildQuotationBody({
+			serviceType: "MOTORCYCLE",
+			market: "SG",
+			stops: [
+				{ coordinates: { latitude: 1.28, longitude: 103.85 }, address: "a" },
+				{ coordinates: { latitude: 1.35, longitude: 103.87 }, address: "b" },
+			],
+		});
+		expect(body.data.language).toBe("en_SG");
+	});
+
+	test("an MY-market body stays en_MY — byte-identical to before", () => {
+		const body = buildQuotationBody({
+			serviceType: "CAR",
+			market: "MY",
+			stops: [
+				{ coordinates: { latitude: 3.1, longitude: 101.6 }, address: "a" },
+				{ coordinates: { latitude: 3.2, longitude: 101.7 }, address: "b" },
+			],
+		});
+		expect(body.data.language).toBe("en_MY");
 	});
 })

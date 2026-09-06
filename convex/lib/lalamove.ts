@@ -291,10 +291,21 @@ export type LalamoveStop = {
 };
 
 /** POST /v3/quotations body. Two stops: seller origin → buyer address. */
+/** Each market's quotation locale — `language` is market-scoped in
+ * Lalamove's v3 body (MY accepts en_MY/ms_MY, SG accepts en_SG), and a
+ * locale/market mismatch is a 422. The PR #255 review caught this as the one
+ * market-scoped field the SG sweep missed: with the old `en_MY` hardcode,
+ * every SG quote could have failed as a generic "unavailable". */
+export const MARKET_LANGUAGE: Record<LalamoveMarket, string> = {
+	MY: "en_MY",
+	SG: "en_SG",
+};
+
 export function buildQuotationBody(args: {
 	serviceType: LalamoveVehicleType | string;
 	stops: LalamoveStop[];
-	language?: string;
+	/** The market the request is signed for — sets the locale to match. */
+	market: LalamoveMarket;
 	/** Epoch-ms pickup time for SCHEDULED pricing (pre-orders): quotes the
 	 * rate for that moment instead of right-now. Omit for immediate. */
 	scheduleAt?: number;
@@ -302,7 +313,7 @@ export function buildQuotationBody(args: {
 	return {
 		data: {
 			serviceType: args.serviceType,
-			language: args.language ?? "en_MY",
+			language: MARKET_LANGUAGE[args.market],
 			...(args.scheduleAt !== undefined
 				? { scheduleAt: new Date(args.scheduleAt).toISOString() }
 				: {}),

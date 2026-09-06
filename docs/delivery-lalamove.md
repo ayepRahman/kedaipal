@@ -921,6 +921,16 @@ is honoured — **+65 is accepted in SG and still rejected in MY**, and the
 mirror case (+60 in SG) now fails the same way. The Johor cross-border buyer
 exists in both directions.
 
+### Swept late: the quotation locale
+
+The PR #255 review caught the one market-scoped field the sweep missed:
+`language` in the v3 quotation body was hardcoded `en_MY`. Each market has
+its own locale list (MY: `en_MY`/`ms_MY`; SG: `en_SG`) and a mismatch is a
+422 — which `classifyQuoteFailure` has no branch for, so every SG quote
+would have failed as a generic "unavailable". It now derives from the market
+the request already carries (`MARKET_LANGUAGE`), with tests pinning both
+markets.
+
 ### Verified NOT to need changing
 
 - **Money.** SG quotes in SGD with **one** decimal place (`"10.5"`), and

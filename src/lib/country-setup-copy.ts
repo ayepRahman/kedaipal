@@ -98,7 +98,7 @@ const COPY: Record<
 		action: "Open Fulfilment",
 	}),
 	delivery_booking: ({ to, from }) => ({
-		title: "Your Lalamove keys belong to the wrong market",
+		title: "Your Lalamove keys may belong to the wrong market",
 		body: `Lalamove issues API keys per market, so the keys you pasted${from ? ` for ${COUNTRY_LABELS[from]}` : " before the switch"} can't price or book riders in ${COUNTRY_LABELS[to]} — quotes will fail until you create ${COUNTRY_LABELS[to]} keys on developers.lalamove.com and paste them in Integrations. Booking stays switched on; nothing books until the keys work.`,
 		tab: "integrations",
 		action: "Open Integrations",
